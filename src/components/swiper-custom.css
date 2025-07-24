@@ -1,0 +1,25 @@
+.custom-swiper-dot {
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(135deg, #3b82f6 60%, #6366f1 100%);
+  opacity: 0.4;
+  border-radius: 9999px;
+  margin: 0 6px !important;
+  box-shadow: 0 2px 8px 0 rgba(59,130,246,0.10);
+  transition: all 0.3s cubic-bezier(.4,0,.2,1);
+  border: 2px solid #e0e7ef;
+}
+.custom-swiper-dot-active {
+  opacity: 1;
+  background: linear-gradient(135deg, #2563eb 60%, #7c3aed 100%);
+  box-shadow: 0 4px 16px 0 rgba(59,130,246,0.18);
+  border: 2px solid #2563eb;
+  transform: scale(1.18);
+}
+.swiper-pagination {
+  bottom: 0 !important;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+} 
