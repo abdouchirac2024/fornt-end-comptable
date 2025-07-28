@@ -39,6 +39,18 @@ export async function searchFormations(query: string): Promise<{ data: Formation
   return { data: res.data, meta: res.meta };
 }
 
+export async function updateFormation(id: number, data: FormData): Promise<Formation> {
+  const response = await fetch(`${API_BASE_URL}/formations/${id}/update`, {
+    method: 'POST',
+    body: data,
+  });
+  if (!response.ok) {
+    throw new Error('Erreur lors de la mise à jour de la formation');
+  }
+  const res = await response.json();
+  return res.data;
+}
+
 export async function deleteFormation(id: number): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/formations/${id}`, {
     method: 'DELETE',

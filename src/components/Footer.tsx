@@ -1,20 +1,20 @@
 import { Clock, Phone, Mail, ArrowRight, Facebook, Linkedin, Twitter } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import logoGIDSBLUE from '@/assets/GIDSBLUE BLUE.png';
 
 const quickLinks = [
-  { name: "Accueil", path: "/" },
-  { name: "À propos", path: "/about" },
-  { name: "Formations", path: "/formations" },
-  { name: "Services", path: "/services" },
-  { name: "Contact", path: "/contact" },
-  { name: "Blog", path: "/blog" },
+  { name: "Accueil", path: "/", type: "link" },
+  { name: "À propos", path: "/", section: "about", type: "section" },
+  { name: "Formations", path: "/formations", type: "link" },
+  { name: "Services", path: "/services", type: "link" },
+  { name: "Contact", path: "/", section: "contact", type: "section" },
+  { name: "Blog", path: "/blog", type: "link" },
 ];
 const services = [
-  { name: "Audit interne", path: "/services/audit-interne" },
-  { name: "Gestion des risques", path: "/services/gestion-risques" },
-  { name: "Formation", path: "/services/formation" },
-  { name: "Conseil stratégique", path: "/services/conseil-strategique" },
+  { name: "Audit interne", path: "/services", type: "link" },
+  { name: "Gestion des risques", path: "/services", type: "link" },
+  { name: "Formation", path: "/formations", type: "link" },
+  { name: "Conseil stratégique", path: "/services", type: "link" },
 ];
 const socialLinks = [
   { label: "Facebook", href: "https://facebook.com", icon: Facebook },
@@ -23,6 +23,27 @@ const socialLinks = [
 ];
 
 export default function Footer() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleSectionClick = (e, section) => {
+    e.preventDefault();
+    if (location.pathname === '/') {
+      const targetSection = document.getElementById(section);
+      if (targetSection) {
+        targetSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else {
+      navigate('/');
+      setTimeout(() => {
+        const targetSection = document.getElementById(section);
+        if (targetSection) {
+          targetSection.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 300);
+    }
+  };
+
   return (
     <footer className="relative bg-gradient-to-br from-blue-700 via-blue-600 to-blue-800 text-white pt-20 pb-8 overflow-hidden">
       {/* Vague inclinée en haut */}
@@ -70,16 +91,30 @@ export default function Footer() {
             <h3 className="text-lg font-bold mb-6 tracking-wide uppercase text-white">Liens Rapides</h3>
             <div className="space-y-3">
               {quickLinks.map((link) => (
-                <Link
-                  key={link.name}
-                  to={link.path}
-                  className="block text-blue-100 hover:text-white transition-colors duration-200 group font-medium"
-                >
-                  <span className="flex items-center">
-                    {link.name}
-                    <ArrowRight className="h-3 w-3 ml-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200" />
-                  </span>
-                </Link>
+                link.type === 'section' ? (
+                  <a
+                    key={link.name}
+                    href={`#${link.section}`}
+                    onClick={(e) => handleSectionClick(e, link.section)}
+                    className="block text-blue-100 hover:text-white transition-colors duration-200 group font-medium cursor-pointer"
+                  >
+                    <span className="flex items-center">
+                      {link.name}
+                      <ArrowRight className="h-3 w-3 ml-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200" />
+                    </span>
+                  </a>
+                ) : (
+                  <Link
+                    key={link.name}
+                    to={link.path}
+                    className="block text-blue-100 hover:text-white transition-colors duration-200 group font-medium"
+                  >
+                    <span className="flex items-center">
+                      {link.name}
+                      <ArrowRight className="h-3 w-3 ml-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200" />
+                    </span>
+                  </Link>
+                )
               ))}
             </div>
           </div>

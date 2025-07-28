@@ -7,6 +7,7 @@ export type Contact = {
   email: string;
   sujet: string;
   message: string;
+  reponse?: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -41,8 +42,23 @@ export async function updateContact(id: number, data: { nom: string; email: stri
   return res?.data;
 }
 
+// Répondre à un contact (ajouter une réponse)
+export async function replyToContact(id: number, reponse: string): Promise<Contact> {
+  const response = await fetch(`${API_BASE_URL}/contacts/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reponse }),
+    credentials: 'include',
+  });
+  if (!response.ok) {
+    throw new Error("Erreur lors de l'ajout de la réponse");
+  }
+  const res = await response.json();
+  return res?.data;
+}
+
 // Récupérer la liste des contacts (avec pagination)
-export async function getContacts(page: number = 1): Promise<{ data: Contact[]; meta?: any }> {
+export async function getContacts(page: number = 1): Promise<{ data: Contact[]; meta?: { current_page: number; last_page: number; per_page: number; total: number } }> {
   const response = await fetch(`${API_BASE_URL}/contacts?page=${page}`, {
     credentials: 'include',
   });

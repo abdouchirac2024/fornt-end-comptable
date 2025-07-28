@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import BackToTop from '@/components/BackToTop';
+import Chatbot from '@/components/Chatbot';
 import blogBanner from '@/assets/blog.png';
 
 const Blog = () => {
@@ -256,6 +258,8 @@ const Blog = () => {
         </div>
       </div>
       <Footer />
+      <BackToTop />
+      <Chatbot />
     </>
   );
 };

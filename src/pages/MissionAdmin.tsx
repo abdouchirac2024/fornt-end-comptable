@@ -1,0 +1,524 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Eye, Pencil, Trash2, X, Search, CheckCircle2,
+  Plus, Filter, RefreshCw, ChevronLeft, ChevronRight, Loader2, Target, Calendar
+} from 'lucide-react';
+import {
+  getAllMissions,
+  createMission,
+  updateMission,
+  deleteMission,
+  getMissionById,
+  searchMissions
+} from '@/services/missions';
+
+// Types
+interface Mission {
+  id: number;
+  titre: string;
+  description: string;
+  type: string;
+  date_realisation?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+const useMediaQuery = (query: string) => {
+  const [matches, setMatches] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    setMatches(media.matches);
+    const listener = () => setMatches(media.matches);
+    media.addEventListener('change', listener);
+    return () => media.removeEventListener('change', listener);
+  }, [query]);
+  return matches;
+};
+
+const useToast = () => {
+  const [toasts, setToasts] = useState<Array<{id: number, title: React.ReactNode, type: 'success' | 'error' | 'info'}>>([]);
+  const toast = ({ title, type = 'info' }: { title: React.ReactNode, type?: 'success' | 'error' | 'info' }) => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, title, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
+  const ToastContainer = () => (
+    <div className="fixed top-4 right-4 z-50 space-y-2">
+      {toasts.map(toast => (
+        <div
+          key={toast.id}
+          className={`max-w-sm p-4 rounded-xl shadow-lg border animate-slide-in-right ${
+            toast.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
+            toast.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' :
+            'bg-blue-50 border-blue-200 text-blue-800'
+          }`}
+        >
+          {toast.title}
+        </div>
+      ))}
+    </div>
+  );
+  return { toast, ToastContainer };
+};
+
+const usePagination = (data: Mission[], itemsPerPage: number = 8) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.ceil(data.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentData = data.slice(startIndex, endIndex);
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+  const nextPage = () => goToPage(currentPage + 1);
+  const prevPage = () => goToPage(currentPage - 1);
+  return {
+    currentData,
+    currentPage,
+    totalPages,
+    goToPage,
+    nextPage,
+    prevPage,
+    hasNext: currentPage < totalPages,
+    hasPrev: currentPage > 1,
+    totalItems: data.length,
+    startIndex: startIndex + 1,
+    endIndex: Math.min(endIndex, data.length)
+  };
+};
+
+// Modal de détail
+const MissionModal = ({ mission, onClose }: { mission: Mission | null, onClose: () => void }) => {
+  if (!mission) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <h2 className="text-2xl font-bold text-gray-900">Détails de la mission</h2>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+            <X className="w-6 h-6 text-gray-500" />
+          </button>
+        </div>
+        <div className="p-6 overflow-y-auto" style={{ maxHeight: '70vh' }}>
+          <div className="space-y-6">
+            <div>
+              <label className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Titre</label>
+              <p className="text-xl font-bold text-gray-900 mt-1">{mission.titre}</p>
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Type</label>
+              <p className="text-gray-700 mt-1 leading-relaxed">{mission.type}</p>
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Description</label>
+              <p className="text-gray-700 mt-1 leading-relaxed whitespace-pre-line">{mission.description}</p>
+            </div>
+            <div className="bg-gray-50 p-4 rounded-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar className="w-5 h-5 text-gray-600" />
+                <label className="text-sm font-semibold text-gray-600">Date de réalisation</label>
+              </div>
+              <p className="text-gray-900 font-medium">
+                {mission.date_realisation ? new Date(mission.date_realisation).toLocaleDateString('fr-FR') : 'N/A'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Modal de création
+const CreateMissionModal = ({ onClose, onCreated }: { onClose: () => void, onCreated: () => void }) => {
+  const { toast } = useToast();
+  const [form, setForm] = useState({
+    titre: '',
+    description: '',
+    type: '',
+    date_realisation: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await createMission(form);
+      toast({
+        title: (
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-green-600" />
+            <span>Mission créée avec succès !</span>
+          </div>
+        ),
+        type: 'success'
+      });
+      onCreated();
+      onClose();
+    } catch {
+      toast({ title: 'Erreur lors de la création', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
+        <div className="flex items-center justify-between p-4 border-b border-gray-100">
+          <h2 className="text-2xl font-bold text-gray-900">Créer une nouvelle mission</h2>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100">
+            <X className="w-6 h-6 text-gray-500" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-4 space-y-4 overflow-y-auto" style={{ maxHeight: '70vh' }}>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Titre</label>
+            <input type="text" value={form.titre} onChange={e => setForm(f => ({ ...f, titre: e.target.value }))} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" required />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Type</label>
+            <input type="text" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" required />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+            <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={4} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none" required />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Date de réalisation</label>
+            <input type="date" value={form.date_realisation} onChange={e => setForm(f => ({ ...f, date_realisation: e.target.value }))} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" />
+          </div>
+          <div className="flex gap-4 pt-4">
+            <button type="button" onClick={onClose} className="flex-1 px-6 py-3 border border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition-colors">Annuler</button>
+            <button type="submit" disabled={loading} className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+              {loading && <Loader2 className="w-5 h-5 animate-spin" />}
+              {loading ? 'Création...' : 'Créer la mission'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Modal de suppression
+const DeleteModal = ({ mission, onCancel, onConfirm, loading }: {
+  mission: Mission | null;
+  onCancel: () => void;
+  onConfirm: () => void;
+  loading: boolean;
+}) => {
+  if (!mission) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+        <div className="p-6 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+            <Trash2 className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Supprimer la mission</h2>
+          <p className="text-gray-600 mb-6">
+            Êtes-vous sûr de vouloir supprimer <span className="font-semibold text-gray-900">"{mission.titre}"</span> ?<br />Cette action est irréversible.
+          </p>
+          <div className="flex gap-4">
+            <button onClick={onCancel} disabled={loading} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50">Annuler</button>
+            <button onClick={onConfirm} disabled={loading} className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {loading ? 'Suppression...' : 'Supprimer'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Tableau des missions
+const MissionsTable = ({ missions, onView, onEdit, onDelete }: {
+  missions: Mission[]; onView: (mission: Mission) => void; onEdit: (mission: Mission) => void; onDelete: (mission: Mission) => void;
+}) => (
+  <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Titre</th>
+            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
+            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {missions.map((mission) => (
+            <tr key={mission.id} className="hover:bg-gray-50 transition-colors">
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm font-semibold text-gray-900">{mission.titre}</div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{mission.type}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{mission.date_realisation ? new Date(mission.date_realisation).toLocaleDateString('fr-FR') : 'N/A'}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-center">
+                <div className="flex items-center justify-center space-x-2">
+                  <button onClick={() => onView(mission)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Voir"><Eye className="w-5 h-5" /></button>
+                  <button onClick={() => onEdit(mission)} className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg" title="Modifier"><Pencil className="w-5 h-5" /></button>
+                  <button onClick={() => onDelete(mission)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Supprimer"><Trash2 className="w-5 h-5" /></button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
+
+// Grille des missions (mobile)
+const MissionsGrid = ({ missions, onView, onEdit, onDelete }: {
+  missions: Mission[]; onView: (mission: Mission) => void; onEdit: (mission: Mission) => void; onDelete: (mission: Mission) => void;
+}) => (
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+    {missions.map((mission) => (
+      <div key={mission.id} className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow">
+        <div className="p-6">
+          <div className="flex justify-between items-start mb-2">
+            <h3 className="text-lg font-bold text-gray-900 pr-2">{mission.titre}</h3>
+            <span className="inline-block bg-indigo-100 text-indigo-800 text-xs font-medium px-2.5 py-1 rounded-full">{mission.type}</span>
+          </div>
+          <p className="text-gray-600 text-sm mb-4 line-clamp-2">{mission.description}</p>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4 text-sm">
+              <span className="flex items-center gap-1 text-gray-500">
+                <Calendar className="w-4 h-4" />
+                {mission.date_realisation ? new Date(mission.date_realisation).toLocaleDateString('fr-FR') : 'N/A'}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center justify-end space-x-2">
+            <button onClick={() => onView(mission)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Voir"><Eye className="w-5 h-5" /></button>
+            <button onClick={() => onEdit(mission)} className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg" title="Modifier"><Pencil className="w-5 h-5" /></button>
+            <button onClick={() => onDelete(mission)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Supprimer"><Trash2 className="w-5 h-5" /></button>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+// Modal d'édition
+const EditMissionModal = ({ mission, onClose, onUpdated }: { mission: Mission, onClose: () => void, onUpdated: () => void }) => {
+  const { toast } = useToast();
+  const [form, setForm] = useState({
+    titre: mission.titre,
+    description: mission.description,
+    type: mission.type,
+    date_realisation: mission.date_realisation || ''
+  });
+  const [loading, setLoading] = useState(false);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await updateMission(mission.id, form);
+      toast({
+        title: (
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-green-600" />
+            <span>Mission modifiée avec succès !</span>
+          </div>
+        ),
+        type: 'success'
+      });
+      onUpdated();
+      onClose();
+    } catch {
+      toast({ title: 'Erreur lors de la modification', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
+        <div className="flex items-center justify-between p-4 border-b border-gray-100">
+          <h2 className="text-2xl font-bold text-gray-900">Modifier la mission</h2>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100">
+            <X className="w-6 h-6 text-gray-500" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-4 space-y-4 overflow-y-auto" style={{ maxHeight: '70vh' }}>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Titre</label>
+            <input type="text" value={form.titre} onChange={e => setForm(f => ({ ...f, titre: e.target.value }))} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" required />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Type</label>
+            <input type="text" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" required />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+            <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={4} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none" required />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Date de réalisation</label>
+            <input type="date" value={form.date_realisation} onChange={e => setForm(f => ({ ...f, date_realisation: e.target.value }))} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" />
+          </div>
+          <div className="flex gap-4 pt-4">
+            <button type="button" onClick={onClose} className="flex-1 px-6 py-3 border border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition-colors">Annuler</button>
+            <button type="submit" disabled={loading} className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+              {loading && <Loader2 className="w-5 h-5 animate-spin" />}
+              {loading ? 'Modification...' : 'Enregistrer'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Composant principal
+const MissionAdmin = () => {
+  const { toast, ToastContainer } = useToast();
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  const [missions, setMissions] = useState<Mission[]>([]);
+  const [filteredMissions, setFilteredMissions] = useState<Mission[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMission, setSelectedMission] = useState<Mission | null>(null);
+  const [missionToDelete, setMissionToDelete] = useState<Mission | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [missionToEdit, setMissionToEdit] = useState<Mission | null>(null);
+  const pagination = usePagination(filteredMissions, 8);
+  useEffect(() => { fetchMissions(); }, []);
+  const fetchMissions = async () => {
+    setLoading(true);
+    try {
+      const res = await getAllMissions();
+      setMissions(res.data);
+      setFilteredMissions(res.data);
+    } catch {
+      toast({ title: 'Erreur lors du chargement des missions', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleSearch = useCallback(async (query: string) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setFilteredMissions(missions);
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await searchMissions(query);
+      setFilteredMissions(res.data);
+    } catch {
+      toast({ title: 'Erreur lors de la recherche', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }, [missions, toast]);
+  const handleEdit = (mission: Mission) => setMissionToEdit(mission);
+  const handleDeleteConfirm = async () => {
+    if (!missionToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteMission(missionToDelete.id);
+      setFilteredMissions(prev => prev.filter(f => f.id !== missionToDelete.id));
+      setMissions(prev => prev.filter(f => f.id !== missionToDelete.id));
+      toast({ title: (
+        <div className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-green-600" /><span>Mission "{missionToDelete.titre}" supprimée avec succès</span></div>), type: 'success' });
+      setMissionToDelete(null);
+    } catch {
+      toast({ title: 'Erreur lors de la suppression', type: 'error' });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+  const handleRefresh = () => {
+    fetchMissions();
+    setSearchQuery('');
+    toast({ title: <div className="flex items-center gap-2"><RefreshCw className="w-5 h-5 text-blue-600" /><span>Liste actualisée</span></div>, type: 'success' });
+  };
+  const handleCreated = () => { handleRefresh(); };
+  const stats = [
+    { title: 'Total Missions', value: missions.length, icon: Target, color: 'blue' }
+  ];
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <ToastContainer />
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center"><Target className="w-8 h-8 text-blue-600 mr-3" /><h1 className="text-2xl font-bold text-gray-900">Gestion des Missions</h1></div>
+            <div className="flex items-center space-x-4">
+              <button onClick={handleRefresh} className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg" title="Actualiser"><RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /></button>
+              <button onClick={() => setShowCreateModal(true)} className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"><Plus className="w-5 h-5 mr-2" />Nouvelle Mission</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {stats.map((stat, index) => (
+            <div key={index} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
+                </div>
+                <div className={`p-3 rounded-xl bg-${stat.color}-100`}><stat.icon className={`w-6 h-6 text-${stat.color}-600`} /></div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="relative flex-1 max-w-lg">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input type="text" value={searchQuery} onChange={e => handleSearch(e.target.value)} placeholder="Rechercher par titre, type ou description..." className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div className="flex items-center space-x-3">
+              <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"><Filter className="w-4 h-4 mr-2" />Filtrer</button>
+            </div>
+          </div>
+        </div>
+        {loading ? (
+          <div className="bg-white rounded-2xl p-12 flex flex-col items-center justify-center"><Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-4" /><p className="text-gray-600">Chargement des missions...</p></div>
+        ) : filteredMissions.length === 0 ? (
+          <div className="bg-white rounded-2xl p-12 text-center">
+            <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucune mission trouvée</h3>
+            <p className="text-gray-600 mb-6">{searchQuery ? 'Aucun résultat pour votre recherche.' : 'Commencez par créer votre première mission.'}</p>
+            {!searchQuery && <button onClick={() => setShowCreateModal(true)} className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg"><Plus className="w-5 h-5 mr-2" />Créer une mission</button>}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {isMobile ? (
+              <MissionsGrid missions={pagination.currentData} onView={setSelectedMission} onEdit={handleEdit} onDelete={setMissionToDelete} />
+            ) : (
+              <MissionsTable missions={pagination.currentData} onView={setSelectedMission} onEdit={handleEdit} onDelete={setMissionToDelete} />
+            )}
+            {pagination.totalPages > 1 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-b-2xl">
+                  <button onClick={pagination.prevPage} disabled={!pagination.hasPrev} className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"><ChevronLeft className="w-5 h-5" /></button>
+                  {[...Array(pagination.totalPages).keys()].map(page => (
+                    <button key={page + 1} onClick={() => pagination.goToPage(page + 1)} className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${page + 1 === pagination.currentPage ? 'z-10 bg-blue-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600' : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'}`}>{page + 1}</button>
+                  ))}
+                  <button onClick={pagination.nextPage} disabled={!pagination.hasNext} className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"><ChevronRight className="w-5 h-5" /></button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      {selectedMission && <MissionModal mission={selectedMission} onClose={() => setSelectedMission(null)} />}
+      {showCreateModal && <CreateMissionModal onClose={() => setShowCreateModal(false)} onCreated={handleCreated} />}
+      {missionToDelete && <DeleteModal mission={missionToDelete} onCancel={() => setMissionToDelete(null)} onConfirm={handleDeleteConfirm} loading={isDeleting} />}
+      {missionToEdit && <EditMissionModal mission={missionToEdit} onClose={() => setMissionToEdit(null)} onUpdated={handleRefresh} />}
+    </div>
+  );
+};
+
+export default MissionAdmin; 

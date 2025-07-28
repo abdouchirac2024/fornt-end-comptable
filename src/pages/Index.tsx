@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
-import HeroSection from '@/components/HeroSection';
+import DynamicHeroSection from '@/components/DynamicHeroSection';
 import AboutSection from '@/components/AboutSection';
 import ServicesSection from '@/components/ServicesSection';
 
@@ -29,7 +29,7 @@ const Index = () => {
   return (
     <div className="min-h-screen">
       <Navbar />
-      <HeroSection />
+      <DynamicHeroSection />
       <AboutSection />
       {/* (SUPPRIMÉ) Section Nos Formations Clés dynamique */}
       <ServicesSection />

@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { Bell, ChevronDown, LogOut, User, Settings } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import logo from '@/assets/GIDSBLUE BLUE.png';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/components/ui/use-toast';
+import { logout } from '@/services/auth';
 
 const userRaw = localStorage.getItem('user');
 let user;
@@ -17,6 +20,31 @@ const avatar = typeof user.avatar === 'string' && user.avatar.trim() ? user.avat
 
 export default function AdminTopbar({ onLogout }) {
   const [open, setOpen] = useState(false);
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    setLoading(true);
+    try {
+      await logout();
+      toast({
+        title: 'Déconnexion réussie',
+        type: 'success',
+      });
+      setTimeout(() => {
+        navigate('/login');
+      }, 1000);
+    } catch {
+      toast({
+        title: 'Erreur lors de la déconnexion',
+        type: 'error',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <header className="w-full h-16 flex items-center justify-between px-4 md:px-8 bg-blue-900 shadow-sm border-b border-blue-950 sticky top-0 z-20 animate-fade-in-down">
       <div className="flex items-center gap-3">
@@ -51,8 +79,12 @@ export default function AdminTopbar({ onLogout }) {
               <button className="w-full flex items-center gap-2 px-4 py-2 hover:bg-blue-800 text-white text-sm" onClick={() => {}}>
                 <Settings size={16} /> Paramètres
               </button>
-              <button className="w-full flex items-center gap-2 px-4 py-2 hover:bg-blue-800 text-white text-sm border-t border-blue-800" onClick={onLogout}>
-                <LogOut size={16} /> Déconnexion
+              <button
+                onClick={handleLogout}
+                disabled={loading}
+                className={`w-full flex items-center gap-2 px-4 py-2 hover:bg-blue-800 text-white text-sm border-t border-blue-800 ${loading ? 'opacity-60 cursor-not-allowed' : ''}`}
+              >
+                <LogOut size={16} /> {loading ? 'Déconnexion...' : 'Déconnexion'}
               </button>
             </div>
           )}

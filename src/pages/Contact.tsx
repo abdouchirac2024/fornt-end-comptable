@@ -179,25 +179,7 @@ const Contact = () => {
                 </Card>
               ))}
 
-              {/* Quick Actions */}
-              <Card className="border-0 shadow-card bg-gradient-primary text-white rounded-2xl">
-                <CardContent className="p-6">
-                  <h3 className="text-xl font-bold mb-4">Besoin d'une réponse rapide ?</h3>
-                  <p className="text-blue-100 mb-6">
-                    Utilisez notre chat en ligne ou appelez-nous directement.
-                  </p>
-                  <div className="space-y-3">
-                    <Button className="w-full bg-white text-primary hover:bg-white/90">
-                      <Phone className="mr-2 h-4 w-4" />
-                      Appeler Maintenant
-                    </Button>
-                    <Button variant="outline" className="w-full border-white text-white hover:bg-white hover:text-primary">
-                      <MessageCircle className="mr-2 h-4 w-4" />
-                      Chat en Ligne
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+           
             </div>
 
             {/* Contact Form */}

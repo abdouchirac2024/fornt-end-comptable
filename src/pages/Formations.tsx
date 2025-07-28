@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import BackToTop from '@/components/BackToTop';
+import Chatbot from '@/components/Chatbot';
 import { getAllFormations, Formation } from '@/services/formations';
 
 const Formations = () => {
@@ -51,7 +53,12 @@ const Formations = () => {
       <Navbar />
       <div className="min-h-screen">
         {/* Header avec bannière */}
-        <section className="relative h-96 bg-gradient-hero flex items-center justify-center overflow-hidden bg-blue-700">
+        <section className="relative h-96 flex items-center justify-center overflow-hidden" style={{
+          backgroundImage: 'url(/assets/about/bg-accompagnement2.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}>
           {/* Biscuits NDOP SVG */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
             <svg className="absolute top-8 left-10 w-12 h-12 opacity-20 animate-[floatBiscuits_7s_ease-in-out_infinite]" viewBox="0 0 24 24">
@@ -191,7 +198,7 @@ const Formations = () => {
             </Card>
           </section>
         </div>
-        {/* Animation keyframes biscuits et fade-in-up */}
+        {/* Animation keyframes simplifiées */}
         <style>{`
           @keyframes floatBiscuits {
             0%, 100% { transform: translateY(0); }
@@ -207,6 +214,8 @@ const Formations = () => {
         `}</style>
       </div>
       <Footer />
+      <BackToTop />
+      <Chatbot />
     </>
   );
 };
