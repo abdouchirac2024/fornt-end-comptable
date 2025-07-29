@@ -20,6 +20,12 @@ export interface HeroSlide {
   description: string;
   gradient: string;
   background_image?: string;
+  images?: Array<{
+    url: string;
+    alt_text?: string;
+    caption?: string;
+    display_order: number;
+  }>;
   slide_duration: number;
   is_active: boolean;
   hero_section?: HeroSection | null;
@@ -65,6 +71,68 @@ export const getActiveHeroSection = async (): Promise<{ success: boolean; data: 
       throw new Error('Erreur lors du chargement de la section hero active');
     }
     return response.json();
+  } catch (error) {
+    // Retourner une réponse par défaut si l'API n'est pas disponible
+    return {
+      success: false,
+      data: {
+        id: 1,
+        is_active: true,
+        slides: [],
+        active_slides: [],
+        slides_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      },
+      message: 'API non disponible'
+    };
+  }
+};
+
+// Service pour récupérer toutes les sections hero avec le slide le plus récent
+export const getAllHeroSectionsWithLatestSlide = async (): Promise<{ success: boolean; data: HeroSection; message: string }> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/hero-sections`);
+    if (!response.ok) {
+      throw new Error('Erreur lors du chargement des sections hero');
+    }
+    
+    const result = await response.json();
+    if (result.success && result.data && result.data.length > 0) {
+      // Trouver toutes les sections actives
+      const activeSections = result.data.filter((section: HeroSection) => section.is_active);
+      
+      if (activeSections.length === 0) {
+        throw new Error('Aucune section hero active trouvée');
+      }
+      
+      // Collecter tous les slides actifs de toutes les sections
+      let allActiveSlides: HeroSlide[] = [];
+      activeSections.forEach((section: HeroSection) => {
+        if (section.slides && section.slides.length > 0) {
+          const activeSlides = section.slides.filter((slide: HeroSlide) => slide.is_active);
+          allActiveSlides = [...allActiveSlides, ...activeSlides];
+        }
+      });
+      
+      // Trier par ordre de création (le plus récent en premier)
+      allActiveSlides.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      
+      // Retourner la première section active avec tous les slides triés
+      const firstActiveSection = activeSections[0];
+      return {
+        success: true,
+        data: {
+          ...firstActiveSection,
+          active_slides: allActiveSlides
+        },
+        message: 'Sections hero récupérées avec succès'
+      };
+    }
+    
+    throw new Error('Aucune section hero trouvée');
   } catch (error) {
     // Retourner une réponse par défaut si l'API n'est pas disponible
     return {

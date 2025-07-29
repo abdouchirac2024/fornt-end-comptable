@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { ArrowRight, Shield, TrendingUp, Users, Award, CheckCircle, Star, ChevronDown, Play, Sparkles } from 'lucide-react';
-import { getActiveHeroSection, HeroSection, HeroSlide } from '@/services/heroSections';
+import { getActiveHeroSection, getAllHeroSectionsWithLatestSlide, HeroSection, HeroSlide } from '@/services/heroSections';
 
 // Hook pour l'effet machine à écrire amélioré
 const useTypewriter = (text: string, speed = 80) => {
@@ -247,10 +247,13 @@ const DynamicHeroSection = () => {
     const fetchHeroSection = async () => {
       try {
         setLoading(true);
-        const response = await getActiveHeroSection();
+        const response = await getAllHeroSectionsWithLatestSlide();
         if (response.success && response.data) {
+          // Les slides sont déjà triés par ordre de création (le plus récent en premier)
           setHeroSection(response.data);
           setIsLoaded(true);
+          // Réinitialiser currentSlide à 0 pour afficher le plus récent
+          setCurrentSlide(0);
         } else {
           setError('Aucune section hero active trouvée');
         }
@@ -270,6 +273,32 @@ const DynamicHeroSection = () => {
 
     return () => clearTimeout(timer);
   }, [dataFetched]);
+
+  // Rafraîchissement automatique toutes les 30 secondes pour détecter les nouveaux slides
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const response = await getAllHeroSectionsWithLatestSlide();
+        if (response.success && response.data) {
+          // Vérifier si les données ont changé
+          const currentSlidesCount = heroSection?.active_slides?.length || 0;
+          const newSlidesCount = response.data.active_slides?.length || 0;
+          
+          if (newSlidesCount !== currentSlidesCount || 
+              JSON.stringify(heroSection?.active_slides) !== JSON.stringify(response.data.active_slides)) {
+            console.log('Nouveaux slides détectés, mise à jour...');
+            setHeroSection(response.data);
+            setCurrentSlide(0); // Afficher le plus récent
+            setDataFetched(false); // Permettre un nouveau rafraîchissement
+          }
+        }
+      } catch (err) {
+        console.error('Erreur lors du rafraîchissement automatique:', err);
+      }
+    }, 30000); // Rafraîchir toutes les 30 secondes
+
+    return () => clearInterval(interval);
+  }, [heroSection]);
 
   // Gestion du slider automatique
   useEffect(() => {
@@ -331,15 +360,38 @@ const DynamicHeroSection = () => {
       ref={heroRef}
       className={`relative min-h-screen w-full flex items-center bg-gradient-to-br ${currentSlideData?.gradient || 'from-blue-600 via-blue-500 to-blue-800'} text-white overflow-hidden transition-all duration-1000 ease-in-out`}
     >
-      {/* Image de fond si disponible */}
-      {currentSlideData?.background_image && (
+      {/* Images de fond si disponibles */}
+      {(currentSlideData?.background_image || currentSlideData?.images?.length) && (
         <div className="absolute inset-0 z-0">
+          {/* Image de fond principale */}
+          {currentSlideData?.background_image && (
           <img
             src={currentSlideData.background_image}
             alt="Hero background"
             className="w-full h-full object-cover object-center select-none pointer-events-none opacity-30"
             draggable="false"
           />
+          )}
+          
+          {/* Images multiples du tableau images */}
+          {currentSlideData?.images?.length > 0 && (
+            <div className="absolute inset-0">
+              {currentSlideData.images.map((image, index) => (
+                <img
+                  key={image.url}
+                  src={image.url}
+                  alt={image.alt_text || `Hero image ${index + 1}`}
+                  className="w-full h-full object-cover object-center select-none pointer-events-none opacity-30"
+                  draggable="false"
+                  style={{
+                    zIndex: index + 1,
+                    animation: `fadeInOut ${currentSlideData.slide_duration || 5000}ms infinite`,
+                    animationDelay: `${index * 2000}ms`
+                  }}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
       
@@ -487,6 +539,13 @@ const DynamicHeroSection = () => {
         @keyframes slideInUp {
           from { opacity: 0; transform: translateY(30px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeInOut {
+          0% { opacity: 0.1; }
+          25% { opacity: 0.3; }
+          50% { opacity: 0.5; }
+          75% { opacity: 0.3; }
+          100% { opacity: 0.1; }
         }
         .animate-fadeIn {
           animation: fadeIn 1s ease-out;

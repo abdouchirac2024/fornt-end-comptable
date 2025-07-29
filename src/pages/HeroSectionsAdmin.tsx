@@ -24,6 +24,7 @@ import {
   deactivateHeroSlide,
   reorderHeroSlides,
   searchHeroSlides,
+  getAllHeroSectionsWithLatestSlide,
   HeroSection,
   HeroSlide
 } from '@/services/heroSections';
@@ -43,6 +44,7 @@ interface HeroSlideFormData {
   is_active: boolean;
   slide_order: number;
   background_images: File[]; // Changé pour supporter plusieurs images
+  section_id?: number; // Ajout de l'ID de section pour l'identification
 }
 
 // Hook pour media queries
@@ -62,16 +64,16 @@ const useMediaQuery = (query: string) => {
 
 // Hook pour les toasts
 const useToast = () => {
-  const [toasts, setToasts] = useState<Array<{id: number, title: React.ReactNode, type: 'success' | 'error' | 'info'}>>([]);
+  const [toasts, setToasts] = useState<Array<{id: number, title: React.ReactNode, description?: React.ReactNode, type: 'success' | 'error' | 'info'}>>([]);
   const [toastId, setToastId] = useState(0);
 
-  const toast = ({ title, type = 'info' }: { title: React.ReactNode, type?: 'success' | 'error' | 'info' }) => {
+  const toast = ({ title, description, type = 'info' }: { title: React.ReactNode, description?: React.ReactNode, type?: 'success' | 'error' | 'info' }) => {
     const id = toastId + 1;
     setToastId(id);
-    setToasts(prev => [...prev, { id, title, type }]);
+    setToasts(prev => [...prev, { id, title, description, type }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
-    }, 4000);
+    }, 5000);
   };
 
   const ToastContainer = () => (
@@ -85,7 +87,10 @@ const useToast = () => {
             'bg-blue-50 border-blue-200 text-blue-800'
           }`}
         >
-          {toast.title}
+          <div className="font-medium">{toast.title}</div>
+          {toast.description && (
+            <div className="text-sm mt-1 opacity-90">{toast.description}</div>
+          )}
         </div>
       ))}
     </div>
@@ -356,9 +361,11 @@ const HeroSlideModal = ({ slide, sectionId, onClose, onSaved }: {
       data.append('slide_duration', formData.slide_duration.toString());
       data.append('is_active', formData.is_active ? '1' : '0'); // Corriger pour correspondre au format Postman
       
+      // Envoyer toutes les images avec le format images_upload[index] comme dans Postman
       if (formData.background_images.length > 0) {
-        // Envoyer seulement la première image comme background_image (compatible avec l'API)
-        data.append('background_image', formData.background_images[0]);
+        formData.background_images.forEach((file, index) => {
+          data.append(`images_upload[${index}]`, file);
+        });
       }
 
       console.log('Envoi des données:', {
@@ -369,7 +376,7 @@ const HeroSlideModal = ({ slide, sectionId, onClose, onSaved }: {
         gradient: formData.gradient,
         slide_duration: formData.slide_duration,
         is_active: formData.is_active,
-        has_image: !!formData.background_images.length
+        images_count: formData.background_images.length
       });
 
       let result;
@@ -384,18 +391,27 @@ const HeroSlideModal = ({ slide, sectionId, onClose, onSaved }: {
         }
       } else {
         try {
-          // Utiliser la méthode normale (corrigée pour background_image)
-          result = await createHeroSlide(data);
-          console.log('Résultat création:', result);
+          // Utiliser la méthode avec plusieurs images
+          result = await createHeroSlideWithMultipleImages(data);
+          console.log('Résultat création (multi-images):', result);
         } catch (error) {
-          console.log('Échec méthode normale, essai méthode alternative...');
-          // Si ça échoue, essayer la méthode alternative
-          result = await createHeroSlideAlternative(data);
-          console.log('Résultat création (méthode alternative):', result);
+          console.log('Échec méthode multi-images, essai méthode normale...');
+          // Si ça échoue, essayer la méthode normale
+          result = await createHeroSlide(data);
+          console.log('Résultat création (méthode normale):', result);
         }
         
         if (result.success) {
-          toast({ title: 'Slide hero créé avec succès', type: 'success' });
+          toast({ 
+            title: 'Slide hero créé avec succès !', 
+            type: 'success',
+            description: 'Le slide sera visible sur la page d\'accueil dans quelques secondes.'
+          });
+          
+          // Redirection automatique vers la page d'accueil après création
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 1500);
         } else {
           toast({ title: `Erreur: ${result.message}`, type: 'error' });
           return;
@@ -589,13 +605,13 @@ const HeroSlideModal = ({ slide, sectionId, onClose, onSaved }: {
                 />
                 {formData.background_images.length > 1 && (
                   <p className="text-xs text-blue-600 mt-2">
-                    ⓘ Seule la première image sera envoyée au serveur
+                    ⓘ Toutes les images seront envoyées au serveur
                   </p>
                 )}
               </div>
             ) : (
               <p className="text-sm text-gray-500 mt-2">
-                Aucune image sélectionnée. Vous pouvez ajouter plusieurs images en les sélectionnant.
+                Aucune image sélectionnée. Vous pouvez ajouter plusieurs images qui seront toutes envoyées au serveur.
               </p>
             )}
           </div>
@@ -620,6 +636,15 @@ const HeroSlideModal = ({ slide, sectionId, onClose, onSaved }: {
             >
               Annuler
             </button>
+            {!slide && (
+              <button
+                type="button"
+                onClick={() => window.open('/', '_blank')}
+                className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                Voir la page d'accueil
+              </button>
+            )}
             <button
               type="submit"
               disabled={loading || !formData.title.trim() || !formData.subtitle.trim() || !formData.description.trim() || formData.description.trim().length < 10}
@@ -796,6 +821,7 @@ const HeroSectionsAdmin = () => {
   const [itemToDelete, setItemToDelete] = useState<HeroSectionWithSlides | HeroSlide | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedSlideImages, setSelectedSlideImages] = useState<HeroSlide | null>(null);
   const [sectionToEdit, setSectionToEdit] = useState<HeroSectionWithSlides | null>(null);
   const [slideToEdit, setSlideToEdit] = useState<HeroSlide | null>(null);
   
@@ -808,13 +834,32 @@ const HeroSectionsAdmin = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [sectionsRes, slidesRes] = await Promise.all([
+      const [sectionsRes, allSectionsRes] = await Promise.all([
         getAllHeroSections(),
-        getAllHeroSlides()
+        getAllHeroSectionsWithLatestSlide()
       ]);
       
       setSections(sectionsRes.data);
-      setSlides(slidesRes.data);
+      
+      // Collecter tous les slides de toutes les sections
+      let allSlides: HeroSlide[] = [];
+      sectionsRes.data.forEach((section: HeroSectionWithSlides) => {
+        if (section.slides && section.slides.length > 0) {
+          // Ajouter l'ID de la section à chaque slide pour l'identification
+          const slidesWithSection = section.slides.map(slide => ({
+            ...slide,
+            section_id: section.id
+          }));
+          allSlides = [...allSlides, ...slidesWithSection];
+        }
+      });
+      
+      // Trier par ordre de création (le plus récent en premier)
+      allSlides.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      
+      setSlides(allSlides);
     } catch (error) {
       toast({ title: `Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`, type: 'error' });
     } finally {
@@ -965,6 +1010,14 @@ const HeroSectionsAdmin = () => {
               <RefreshCw className="w-5 h-5" />
             </button>
             
+            <button
+              onClick={() => window.open('/', '_blank')}
+              className="p-2 text-blue-600 hover:text-blue-700 rounded-lg hover:bg-blue-50 transition-colors"
+              title="Voir la page d'accueil"
+            >
+              <Eye className="w-5 h-5" />
+            </button>
+            
             <div className="flex items-center bg-gray-100 rounded-lg p-1">
               <button
                 onClick={() => setViewMode('sections')}
@@ -1019,8 +1072,10 @@ const HeroSectionsAdmin = () => {
             <span className="text-sm text-gray-600">
               {currentData.length} {viewMode === 'sections' ? 'section(s)' : 'slide(s)'}
               {viewMode === 'slides' && (
-                <span className="ml-2 text-xs text-green-600">
-                  ({slides.filter(slide => slide.background_image).length} avec image)
+                <span className="ml-2 text-sm text-gray-600">
+                  {slides.length} slide(s) ({slides.filter(slide => 
+                    slide.background_image || (slide.images && slide.images.length > 0)
+                  ).length} avec image)
                 </span>
               )}
             </span>
@@ -1078,6 +1133,9 @@ const HeroSectionsAdmin = () => {
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Titre
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Section
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Gradient
@@ -1151,38 +1209,79 @@ const HeroSectionsAdmin = () => {
                     ) : (
                       <>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {item.background_image ? (
-                            <div 
-                              className="relative group cursor-pointer"
-                              onClick={() => setSelectedImage(item.background_image)}
-                              title="Cliquez pour voir l'image en grand"
-                            >
-                              <img
-                                src={item.background_image}
-                                alt={`Image de ${item.title}`}
-                                className="w-16 h-12 object-cover rounded-lg border border-gray-200 shadow-sm"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                                }}
-                              />
-                              <div className="hidden w-16 h-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
-                                <Image className="w-6 h-6 text-gray-400" />
+                          <div className="flex flex-wrap gap-1">
+                            {/* Image de fond principale */}
+                            {item.background_image && (
+                              <div 
+                                className="relative group cursor-pointer"
+                                onClick={() => setSelectedImage(item.background_image)}
+                                title="Cliquez pour voir l'image de fond en grand"
+                              >
+                                <img
+                                  src={item.background_image}
+                                  alt={`Image de fond de ${item.title}`}
+                                  className="w-12 h-9 object-cover rounded border border-gray-200 shadow-sm"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                  }}
+                                />
+                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded flex items-center justify-center">
+                                  <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity font-medium">
+                                    Voir
+                                  </span>
+                                </div>
+                                <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
+                                  <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                                </div>
+                                {/* Indicateur "Image de fond" */}
+                                <div className="absolute -bottom-1 -left-1 bg-purple-500 text-white text-xs px-1 py-0.5 rounded">
+                                  Fond
+                                </div>
                               </div>
-                              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded-lg flex items-center justify-center">
-                                <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity font-medium">
-                                  Voir
-                                </span>
+                            )}
+                            
+                            {/* Images multiples */}
+                            {item.images && item.images.length > 0 && (
+                              <>
+                                {item.images.map((image, index) => (
+                                  <div 
+                                    key={image.url}
+                                    className="relative group cursor-pointer"
+                                    onClick={() => setSelectedImage(image.url)}
+                                    title={`Cliquez pour voir l'image ${index + 1} en grand`}
+                                  >
+                                    <img
+                                      src={image.url}
+                                      alt={`Image ${index + 1} de ${item.title}`}
+                                      className="w-12 h-9 object-cover rounded border border-gray-200 shadow-sm"
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                      }}
+                                    />
+                                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded flex items-center justify-center">
+                                      <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity font-medium">
+                                        Voir
+                                      </span>
+                                    </div>
+                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                      <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                                    </div>
+                                  </div>
+                                ))}
+                                {/* Indicateur du nombre total d'images */}
+                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                  <span className="text-white text-xs font-bold">{item.images.length}</span>
+                                </div>
+                              </>
+                            )}
+                            
+                            {/* Aucune image */}
+                            {!item.background_image && (!item.images || item.images.length === 0) && (
+                              <div className="w-12 h-9 bg-gray-100 rounded border border-gray-200 flex items-center justify-center" title="Aucune image">
+                                <Image className="w-4 h-4 text-gray-400" />
                               </div>
-                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                                <div className="w-2 h-2 bg-white rounded-full"></div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="w-16 h-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center" title="Aucune image">
-                              <Image className="w-6 h-6 text-gray-400" />
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4">
                           <div>
@@ -1193,6 +1292,17 @@ const HeroSectionsAdmin = () => {
                               {item.subtitle}
                             </div>
                           </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.hero_section_id ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              #{item.hero_section_id}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              Aucune section
+                            </span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <GradientPreview gradient={item.gradient} />
