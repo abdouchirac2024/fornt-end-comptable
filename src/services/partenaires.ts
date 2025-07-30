@@ -54,15 +54,42 @@ export const createPartenaire = async (data: FormData): Promise<Partenaire> => {
 };
 
 // Service pour mettre à jour un partenaire
-export const updatePartenaire = async (id: number, data: FormData): Promise<Partenaire> => {
-  const response = await fetch(`${API_BASE_URL}/partenaires/${id}`, {
-    method: 'POST',
-    body: data,
-  });
-  if (!response.ok) {
-    throw new Error('Erreur lors de la mise à jour du partenaire');
+export const updatePartenaire = async (id: number, formData: FormData): Promise<{ success: boolean; message: string; data?: any }> => {
+  try {
+    console.log('Updating partenaire with ID:', id);
+    console.log('FormData contents:');
+    for (let [key, value] of formData.entries()) {
+      console.log(`${key}:`, value);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/partenaires/${id}/edit`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    console.log('Response status:', response.status);
+    console.log('Response headers:', response.headers);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error response:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log('Update response:', result);
+
+    // Le backend retourne { data: {...} } sans success/message
+    // On considère que si on arrive ici avec status 200, c'est un succès
+    return {
+      success: true,
+      message: 'Partenaire mis à jour avec succès',
+      data: result.data
+    };
+  } catch (error) {
+    console.error('Error updating partenaire:', error);
+    throw error;
   }
-  return response.json();
 };
 
 // Service pour supprimer un partenaire

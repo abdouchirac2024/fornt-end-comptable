@@ -55,9 +55,9 @@ export async function createService(serviceData: FormData): Promise<{ success: b
   console.log('Envoi de la requête POST vers:', `${API_BASE_URL}/services`);
   
   try {
-    const response = await fetch(`${API_BASE_URL}/services`, {
-      method: 'POST',
-      body: serviceData,
+  const response = await fetch(`${API_BASE_URL}/services`, {
+    method: 'POST',
+    body: serviceData,
       // Ne pas définir Content-Type pour FormData, le navigateur le fait automatiquement
       redirect: 'follow', // Suivre les redirections
     });

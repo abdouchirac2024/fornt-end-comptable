@@ -605,8 +605,8 @@ const ServicesTable = ({ services, onView, onEdit, onDelete }: {
             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Créé le</th>
             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Modifié le</th>
             <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-          </tr>
-        </thead>
+              </tr>
+            </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {services.map((service) => (
             <tr key={service.id} className="hover:bg-gray-50 transition-colors">
@@ -614,14 +614,14 @@ const ServicesTable = ({ services, onView, onEdit, onDelete }: {
                 #{service.id}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm font-semibold text-gray-900">{service.nom}</div>
+                    <div className="text-sm font-semibold text-gray-900">{service.nom}</div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <code className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">{service.slug}</code>
               </td>
               <td className="px-6 py-4">
                 <div className="text-sm text-gray-600 max-w-xs truncate" title={service.description}>
-                  {service.description}
+                      {service.description}
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
@@ -653,9 +653,9 @@ const ServicesTable = ({ services, onView, onEdit, onDelete }: {
                   <button onClick={() => onEdit(service)} className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg" title="Modifier"><Pencil className="w-5 h-5" /></button>
                   <button onClick={() => onDelete(service)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Supprimer"><Trash2 className="w-5 h-5" /></button>
                 </div>
-              </td>
-            </tr>
-          ))}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
     </div>
