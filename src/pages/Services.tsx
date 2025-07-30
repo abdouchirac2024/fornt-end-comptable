@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Shield, Target, TrendingUp, Award, CheckCircle, BookOpen, ArrowRight } from 'lucide-react';
+import { Users, Shield, Target, TrendingUp, Award, CheckCircle, BookOpen, ArrowRight, X, Clock, DollarSign, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import Navbar from '@/components/Navbar';
@@ -9,11 +9,116 @@ import BackToTop from '@/components/BackToTop';
 import Chatbot from '@/components/Chatbot';
 import { searchServices, Service } from '@/services/services';
 
+// Modal de détail du service
+const ServiceDetailModal = ({ service, onClose }: { service: Service | null, onClose: () => void }) => {
+  if (!service) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <h2 className="text-2xl font-bold text-gray-900">Détails du service</h2>
+          <button 
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+          >
+            <X className="w-6 h-6 text-gray-500" />
+          </button>
+        </div>
+        
+        <div className="p-6 overflow-y-auto" style={{ maxHeight: '70vh' }}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="space-y-6">
+              <div>
+                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Nom du service</label>
+                <p className="text-xl font-bold text-gray-900 mt-1">{service.nom}</p>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Catégorie</label>
+                <p className="mt-1">
+                  <span className="inline-block bg-indigo-100 text-indigo-800 text-sm font-medium px-3 py-1 rounded-full">{service.categorie}</span>
+                </p>
+              </div>
+              
+              <div>
+                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Description</label>
+                <p className="text-gray-700 mt-1 leading-relaxed">{service.description}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-blue-50 p-4 rounded-xl">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Clock className="w-5 h-5 text-blue-600" />
+                    <label className="text-sm font-semibold text-blue-600">Durée</label>
+                  </div>
+                  <p className="text-lg font-bold text-blue-900">{service.duree}</p>
+                </div>
+                
+                <div className="bg-green-50 p-4 rounded-xl">
+                  <div className="flex items-center gap-2 mb-2">
+                    <DollarSign className="w-5 h-5 text-green-600" />
+                    <label className="text-sm font-semibold text-green-600">Tarif</label>
+                  </div>
+                  <p className="text-lg font-bold text-green-900">{service.tarif}</p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-xl">
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar className="w-5 h-5 text-gray-600" />
+                  <label className="text-sm font-semibold text-gray-600">Date de création</label>
+                </div>
+                <p className="text-gray-900 font-medium">
+                  {service.created_at ? new Date(service.created_at).toLocaleDateString('fr-FR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  }) : 'N/A'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center">
+              <label className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Image du service</label>
+              {service.image ? (
+                <img 
+                  src={service.image} 
+                  alt={service.nom}
+                  className="w-full max-w-md h-64 object-cover rounded-xl shadow-lg"
+                />
+              ) : (
+                <div className="w-full max-w-md h-64 bg-gray-100 rounded-xl flex items-center justify-center">
+                  <BookOpen className="w-16 h-16 text-gray-400" />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        <div className="p-6 border-t border-gray-100">
+          <div className="flex gap-4 justify-end">
+            <Button variant="outline" onClick={onClose}>
+              Fermer
+            </Button>
+            <Link to="/contact">
+              <Button className="btn-primary">
+                Demander un devis
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Services = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [showAll, setShowAll] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -23,6 +128,10 @@ const Services = () => {
       .catch(() => setError("Erreur lors du chargement des services."))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleServiceClick = (service: Service) => {
+    setSelectedService(service);
+  };
 
   const advantages = [
     {
@@ -157,13 +266,14 @@ const Services = () => {
                             <div className="text-sm text-muted-foreground">Tarif</div>
                             <div className="font-bold text-lg">{service.tarif}</div>
                           </div>
-                          {/* Lien vers une page de détail si besoin */}
-                          {/* <Link to={`/services/${service.id}`}> */}
-                          <Button className="btn-primary group" aria-label={`Découvrir le service ${service.nom}`}>
+                          <Button 
+                            className="btn-primary group" 
+                            aria-label={`Découvrir le service ${service.nom}`}
+                            onClick={() => handleServiceClick(service)}
+                          >
                             Découvrir
                             <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
                           </Button>
-                          {/* </Link> */}
                         </div>
                       </CardContent>
                     </Card>
@@ -181,21 +291,30 @@ const Services = () => {
           </section>
           {/* CTA personnalisée */}
           <section className="text-center">
-            <Card className="max-w-4xl mx-auto p-8 bg-gradient-card shadow-elegant">
-              <h3 className="text-2xl font-bold mb-4">Service sur mesure</h3>
-              <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
-                Besoin d'un accompagnement spécifique ?
-                Nous concevons des services adaptés à vos enjeux et objectifs.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link to="/contact">
-                  <Button className="btn-primary">
-                    Demander un devis
+            <Card className="max-w-4xl mx-auto p-8 bg-gradient-card shadow-elegant relative overflow-hidden">
+              {/* Overlay pour améliorer la lisibilité */}
+              <div className="absolute inset-0 bg-black/10 rounded-xl"></div>
+              
+              {/* Contenu avec meilleure lisibilité */}
+              <div className="relative z-10">
+                <h3 className="text-3xl font-bold mb-4 text-white drop-shadow-lg">
+                  Service sur mesure
+                </h3>
+                <p className="text-white/90 mb-6 max-w-2xl mx-auto text-lg leading-relaxed drop-shadow-md">
+                  Besoin d'un accompagnement spécifique ?
+                  <br />
+                  Nous concevons des services adaptés à vos enjeux et objectifs.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Link to="/contact">
+                    <Button className="btn-primary bg-white text-blue-600 hover:bg-gray-100 font-semibold px-8 py-3 text-lg shadow-lg">
+                      Demander un devis
+                    </Button>
+                  </Link>
+                  <Button variant="outline" className="bg-white/90 text-blue-600 border-white hover:bg-white font-semibold px-8 py-3 text-lg shadow-lg">
+                    Télécharger la brochure
                   </Button>
-                </Link>
-                <Button variant="outline">
-                  Télécharger la brochure
-                </Button>
+                </div>
               </div>
             </Card>
           </section>
@@ -213,11 +332,42 @@ const Services = () => {
           .animate-fade-in-up {
             animation: fade-in-up 0.8s cubic-bezier(.4,0,.2,1) both;
           }
+          
+          /* Styles pour améliorer la lisibilité de la section CTA */
+          .bg-gradient-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: relative;
+          }
+          
+          .bg-gradient-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%);
+            border-radius: inherit;
+          }
+          
+          .drop-shadow-lg {
+            filter: drop-shadow(0 10px 8px rgb(0 0 0 / 0.04)) drop-shadow(0 4px 3px rgb(0 0 0 / 0.1));
+          }
+          
+          .drop-shadow-md {
+            filter: drop-shadow(0 4px 3px rgb(0 0 0 / 0.07)) drop-shadow(0 2px 2px rgb(0 0 0 / 0.06));
+          }
         `}</style>
       </div>
       <Footer />
       <BackToTop />
       <Chatbot />
+      {selectedService && (
+        <ServiceDetailModal 
+          service={selectedService} 
+          onClose={() => setSelectedService(null)} 
+        />
+      )}
     </>
   );
 };

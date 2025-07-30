@@ -21,11 +21,12 @@ interface Service {
   nom: string;
   slug: string;
   description: string;
-  categorie: string; // Ajouté pour correspondre à la migration
+  categorie: string;
   duree: string;
   tarif: string;
   image?: string;
   created_at?: string;
+  updated_at?: string;
 }
 
 // Hook pour media queries
@@ -253,13 +254,65 @@ const CreateServiceModal = ({ onClose, onCreated }: { onClose: () => void, onCre
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validation côté client
+    if (!form.nom.trim()) {
+      toast({ title: 'Le nom du service est requis', type: 'error' });
+      return;
+    }
+    
+    if (!form.description.trim()) {
+      toast({ title: 'La description est requise', type: 'error' });
+      return;
+    }
+    
+    if (!form.categorie.trim()) {
+      toast({ title: 'La catégorie est requise', type: 'error' });
+      return;
+    }
+    
+    if (!form.slug.trim()) {
+      toast({ title: 'Le slug est requis', type: 'error' });
+      return;
+    }
+    
     setLoading(true);
     try {
       const fd = new FormData();
-      Object.entries(form).forEach(([key, value]) => {
-        if (value) fd.append(key, value as any);
+      
+      // Ajouter les champs exactement comme dans Postman
+      fd.append('nom', form.nom.trim());
+      fd.append('description', form.description.trim());
+      fd.append('categorie', form.categorie.trim());
+      fd.append('slug', form.slug.trim());
+      fd.append('duree', form.duree.trim());
+      fd.append('tarif', form.tarif.trim());
+      
+      // Ajouter l'image si elle existe
+      if (form.image) {
+        fd.append('image', form.image);
+      }
+      
+      console.log('Données envoyées au serveur:', {
+        nom: form.nom.trim(),
+        description: form.description.trim(),
+        categorie: form.categorie.trim(),
+        slug: form.slug.trim(),
+        duree: form.duree.trim(),
+        tarif: form.tarif.trim(),
+        hasImage: !!form.image
       });
-      await createService(fd);
+      
+      // Afficher les données FormData pour débogage
+      console.log('FormData contents:');
+      for (let [key, value] of fd.entries()) {
+        console.log(`${key}:`, value);
+      }
+      
+      const result = await createService(fd);
+      
+      console.log('Réponse du serveur:', result);
+      
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -271,8 +324,18 @@ const CreateServiceModal = ({ onClose, onCreated }: { onClose: () => void, onCre
       });
       onCreated();
       onClose();
-    } catch {
-      toast({ title: 'Erreur lors de la création', type: 'error' });
+    } catch (error) {
+      console.error('Erreur lors de la création:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      
+      // Afficher plus de détails dans la console
+      console.log('Type d\'erreur:', error.constructor.name);
+      console.log('Message d\'erreur complet:', error);
+      
+      toast({ 
+        title: `Erreur lors de la création: ${errorMessage}`, 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }
@@ -290,7 +353,9 @@ const CreateServiceModal = ({ onClose, onCreated }: { onClose: () => void, onCre
         <form onSubmit={handleSubmit} className="p-4 space-y-4 overflow-y-auto" style={{ maxHeight: '70vh' }}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Nom du service</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Nom du service <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 value={form.nom}
@@ -298,10 +363,13 @@ const CreateServiceModal = ({ onClose, onCreated }: { onClose: () => void, onCre
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 placeholder="Ex: Audit SEO Complet"
                 required
+                disabled={loading}
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Catégorie</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Catégorie <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 value={form.categorie}
@@ -309,11 +377,14 @@ const CreateServiceModal = ({ onClose, onCreated }: { onClose: () => void, onCre
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 placeholder="Ex: Conseil, Développement..."
                 required
+                disabled={loading}
               />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Slug</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Slug <span className="text-red-500">*</span>
+            </label>
             <input
                 type="text"
                 value={form.slug}
@@ -321,10 +392,13 @@ const CreateServiceModal = ({ onClose, onCreated }: { onClose: () => void, onCre
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 placeholder="Ex: audit-seo-complet"
                 required
+                disabled={loading}
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Description <span className="text-red-500">*</span>
+            </label>
             <textarea
               value={form.description}
               onChange={(e) => setForm({...form, description: e.target.value})}
@@ -332,6 +406,7 @@ const CreateServiceModal = ({ onClose, onCreated }: { onClose: () => void, onCre
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
               placeholder="Description détaillée du service..."
               required
+              disabled={loading}
             />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -343,6 +418,7 @@ const CreateServiceModal = ({ onClose, onCreated }: { onClose: () => void, onCre
                 onChange={(e) => setForm({...form, duree: e.target.value})}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 placeholder="Ex: 10 jours"
+                disabled={loading}
               />
             </div>
             <div>
@@ -353,6 +429,7 @@ const CreateServiceModal = ({ onClose, onCreated }: { onClose: () => void, onCre
                 onChange={(e) => setForm({...form, tarif: e.target.value})}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 placeholder="Ex: 1500€"
+                disabled={loading}
               />
             </div>
           </div>
@@ -363,7 +440,11 @@ const CreateServiceModal = ({ onClose, onCreated }: { onClose: () => void, onCre
               accept="image/*"
               onChange={handleFile}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              disabled={loading}
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Formats acceptés: JPG, PNG, GIF. Taille max: 5MB
+            </p>
           </div>
           {imagePreview && (
             <div className="mb-4">
@@ -387,7 +468,8 @@ const CreateServiceModal = ({ onClose, onCreated }: { onClose: () => void, onCre
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-6 py-3 border border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
+              className="flex-1 px-6 py-3 border border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50"
+              disabled={loading}
             >
               Annuler
             </button>
@@ -512,27 +594,34 @@ const ServicesTable = ({ services, onView, onEdit, onDelete }: {
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
+            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Service</th>
+            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Slug</th>
+            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Description</th>
             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Catégorie</th>
             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Durée</th>
             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tarif</th>
+            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Image</th>
+            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Créé le</th>
+            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Modifié le</th>
             <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
+          </tr>
+        </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {services.map((service) => (
             <tr key={service.id} className="hover:bg-gray-50 transition-colors">
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                #{service.id}
+              </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex items-center">
-                    {service.image && (
-                    <img className="h-12 w-12 rounded-lg object-cover mr-4" src={service.image} alt={service.nom} />
-                  )}
-                  <div>
-                    <div className="text-sm font-semibold text-gray-900">{service.nom}</div>
-                    <div className="text-sm text-gray-500 max-w-xs truncate" title={service.description}>
-                      {service.description}
-                    </div>
-                  </div>
+                <div className="text-sm font-semibold text-gray-900">{service.nom}</div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <code className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">{service.slug}</code>
+              </td>
+              <td className="px-6 py-4">
+                <div className="text-sm text-gray-600 max-w-xs truncate" title={service.description}>
+                  {service.description}
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
@@ -542,15 +631,31 @@ const ServicesTable = ({ services, onView, onEdit, onDelete }: {
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className="text-sm font-semibold text-green-600">{service.tarif}</span>
               </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                {service.image ? (
+                  <div className="flex items-center">
+                    <img className="h-8 w-8 rounded object-cover mr-2" src={service.image} alt={service.nom} />
+                    <span className="text-xs text-gray-500">Image</span>
+                  </div>
+                ) : (
+                  <span className="text-xs text-gray-400">Aucune</span>
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
+                {service.created_at ? new Date(service.created_at).toLocaleDateString('fr-FR') : '-'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
+                {service.updated_at ? new Date(service.updated_at).toLocaleDateString('fr-FR') : '-'}
+              </td>
               <td className="px-6 py-4 whitespace-nowrap text-center">
                 <div className="flex items-center justify-center space-x-2">
                   <button onClick={() => onView(service)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Voir"><Eye className="w-5 h-5" /></button>
                   <button onClick={() => onEdit(service)} className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg" title="Modifier"><Pencil className="w-5 h-5" /></button>
                   <button onClick={() => onDelete(service)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Supprimer"><Trash2 className="w-5 h-5" /></button>
                 </div>
-                  </td>
-                </tr>
-              ))}
+              </td>
+            </tr>
+          ))}
             </tbody>
           </table>
     </div>
@@ -567,8 +672,14 @@ const ServicesGrid = ({ services, onView, onEdit, onDelete }: {
         {service.image && <img src={service.image} alt={service.nom} className="w-full h-48 object-cover" />}
         <div className="p-6">
           <div className="flex justify-between items-start mb-2">
-            <h3 className="text-lg font-bold text-gray-900 pr-2">{service.nom}</h3>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">{service.nom}</h3>
+              <p className="text-xs text-gray-500">ID: #{service.id}</p>
+            </div>
             <span className="flex-shrink-0 inline-block bg-indigo-100 text-indigo-800 text-xs font-medium px-2.5 py-1 rounded-full">{service.categorie}</span>
+          </div>
+          <div className="mb-3">
+            <code className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">{service.slug}</code>
           </div>
           <p className="text-gray-600 text-sm mb-4 line-clamp-2">{service.description}</p>
           <div className="flex items-center justify-between mb-4">
@@ -576,6 +687,10 @@ const ServicesGrid = ({ services, onView, onEdit, onDelete }: {
               <span className="flex items-center gap-1 text-gray-500"><Clock className="w-4 h-4" />{service.duree}</span>
               <span className="font-semibold text-green-600">{service.tarif}</span>
             </div>
+          </div>
+          <div className="text-xs text-gray-500 mb-4">
+            <div>Créé: {service.created_at ? new Date(service.created_at).toLocaleDateString('fr-FR') : '-'}</div>
+            <div>Modifié: {service.updated_at ? new Date(service.updated_at).toLocaleDateString('fr-FR') : '-'}</div>
           </div>
           <div className="flex items-center justify-end space-x-2">
             <button onClick={() => onView(service)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Voir"><Eye className="w-5 h-5" /></button>
@@ -620,10 +735,32 @@ const EditServiceModal = ({ service, onClose, onUpdated }: { service: Service, o
     setLoading(true);
     try {
       const fd = new FormData();
-      Object.entries(form).forEach(([key, value]) => {
-        if (value) fd.append(key, value as any);
+      
+      // Ajouter les champs exactement comme dans Postman
+      fd.append('nom', form.nom.trim());
+      fd.append('slug', form.slug.trim());
+      fd.append('description', form.description.trim());
+      fd.append('categorie', form.categorie.trim());
+      fd.append('duree', form.duree.trim());
+      fd.append('tarif', form.tarif.trim());
+      
+      // Ajouter l'image si elle existe
+      if (form.image) {
+        fd.append('image', form.image);
+      }
+      
+      console.log('Données envoyées au serveur:', {
+        nom: form.nom.trim(),
+        slug: form.slug.trim(),
+        description: form.description.trim(),
+        categorie: form.categorie.trim(),
+        duree: form.duree.trim(),
+        tarif: form.tarif.trim(),
+        hasImage: !!form.image
       });
-      await updateService(service.id, fd);
+      
+      const result = await updateService(service.id, fd);
+      
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -635,8 +772,13 @@ const EditServiceModal = ({ service, onClose, onUpdated }: { service: Service, o
       });
       onUpdated();
       onClose();
-    } catch {
-      toast({ title: 'Erreur lors de la modification', type: 'error' });
+    } catch (error) {
+      console.error('Erreur lors de la modification:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      toast({ 
+        title: `Erreur lors de la modification: ${errorMessage}`, 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }

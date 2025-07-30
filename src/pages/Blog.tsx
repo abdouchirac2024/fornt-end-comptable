@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, User, Clock, ArrowRight, Tag } from 'lucide-react';
+import { Calendar, User, Clock, ArrowRight, Tag, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import Navbar from '@/components/Navbar';
@@ -8,86 +8,115 @@ import Footer from '@/components/Footer';
 import BackToTop from '@/components/BackToTop';
 import Chatbot from '@/components/Chatbot';
 import blogBanner from '@/assets/blog.png';
+import { getAllArticleBlogs, ArticleBlog } from '@/services/articleBlogs';
 
 const Blog = () => {
-  const blogPosts = [
-    {
-      id: 1,
-      title: "Les nouveaux défis de l'audit interne en 2024",
-      excerpt: "L'audit interne évolue avec la digitalisation. Découvrez comment adapter vos pratiques aux nouveaux enjeux technologiques et réglementaires.",
-      image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f",
-      category: "Audit Interne",
-      author: "Expert Cabinet Audit",
-      date: "15 Jan 2024",
-      readTime: "5 min",
-      featured: true
-    },
-    {
-      id: 2,
-      title: "Comment réussir sa certification CIA : Guide complet",
-      excerpt: "Toutes les clés pour préparer et réussir votre certification Certified Internal Auditor avec nos conseils d'experts.",
-      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d",
-      category: "Formation",
-      author: "Expert Formation",
-      date: "10 Jan 2024",
-      readTime: "8 min",
-      featured: false
-    },
-    {
-      id: 3,
-      title: "Cartographie des risques : Méthodologie pratique",
-      excerpt: "Une approche structurée pour identifier, évaluer et cartographier les risques de votre organisation.",
-      image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71",
-      category: "Gestion des Risques",
-      author: "Consultant Risques",
-      date: "5 Jan 2024",
-      readTime: "6 min",
-      featured: false
-    },
-    {
-      id: 4,
-      title: "Tendances de l'audit interne en Afrique",
-      excerpt: "Les spécificités et opportunités de l'audit interne dans le contexte africain. Analyse des meilleures pratiques.",
-      image: "https://images.unsplash.com/photo-1578662996442-48f60103fc96",
-      category: "Actualités",
-      author: "Analyste Senior",
-      date: "28 Déc 2023",
-      readTime: "7 min",
-      featured: false
-    },
-    {
-      id: 5,
-      title: "Formation en ligne vs présentiel : Quelle approche choisir ?",
-      excerpt: "Comparaison des modalités de formation pour optimiser votre apprentissage en audit interne.",
-      image: "https://images.unsplash.com/photo-1516321497487-e288fb19713f",
-      category: "Formation",
-      author: "Responsable Pédagogie",
-      date: "20 Déc 2023",
-      readTime: "4 min",
-      featured: false
-    },
-    {
-      id: 6,
-      title: "L'évolution du contrôle interne post-Covid",
-      excerpt: "Comment la pandémie a transformé les pratiques de contrôle interne et les nouvelles adaptations nécessaires.",
-      image: "https://images.unsplash.com/photo-1557804506-669a67965ba0",
-      category: "Contrôle Interne",
-      author: "Expert Contrôle",
-      date: "15 Déc 2023",
-      readTime: "9 min",
-      featured: false
+  const [articles, setArticles] = useState<ArticleBlog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState("Tous");
+
+  // Charger les articles depuis le backend
+  useEffect(() => {
+    const fetchArticles = async () => {
+      try {
+        setLoading(true);
+        const response = await getAllArticleBlogs();
+        setArticles(response.data);
+      } catch (err) {
+        setError('Erreur lors du chargement des articles');
+        console.error('Erreur:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchArticles();
+  }, []);
+
+  // Fonction pour formater la date
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  // Fonction pour extraire un extrait du contenu
+  const getExcerpt = (content: string, maxLength: number = 150) => {
+    if (!content) return 'Aucun contenu disponible';
+    const cleanContent = content.replace(/<[^>]*>/g, ''); // Supprimer les balises HTML
+    return cleanContent.length > maxLength 
+      ? cleanContent.substring(0, maxLength) + '...'
+      : cleanContent;
+  };
+
+  // Fonction pour estimer le temps de lecture
+  const getReadTime = (content: string) => {
+    if (!content) return '1 min';
+    const wordsPerMinute = 200;
+    const wordCount = content.split(' ').length;
+    const minutes = Math.ceil(wordCount / wordsPerMinute);
+    return `${minutes} min`;
+  };
+
+  // Catégories basées sur les meta_titre ou générées automatiquement
+  const getCategory = (article: ArticleBlog) => {
+    if (article.meta_titre) {
+      const categories = ['Audit Interne', 'Formation', 'Gestion des Risques', 'Actualités', 'Contrôle Interne'];
+      // Utiliser le meta_titre pour déterminer la catégorie
+      const lowerMeta = article.meta_titre.toLowerCase();
+      if (lowerMeta.includes('audit')) return 'Audit Interne';
+      if (lowerMeta.includes('formation') || lowerMeta.includes('certification')) return 'Formation';
+      if (lowerMeta.includes('risque')) return 'Gestion des Risques';
+      if (lowerMeta.includes('contrôle')) return 'Contrôle Interne';
+      return 'Actualités';
     }
-  ];
+    return 'Actualités';
+  };
 
   const categories = ["Tous", "Audit Interne", "Formation", "Gestion des Risques", "Actualités", "Contrôle Interne"];
-  const [selectedCategory, setSelectedCategory] = React.useState("Tous");
 
-  const filteredPosts = selectedCategory === "Tous" 
-    ? blogPosts 
-    : blogPosts.filter(post => post.category === selectedCategory);
+  // Filtrer les articles par catégorie
+  const filteredArticles = selectedCategory === "Tous" 
+    ? articles 
+    : articles.filter(article => getCategory(article) === selectedCategory);
 
-  const featuredPost = blogPosts.find(post => post.featured);
-  const otherPosts = blogPosts.filter(post => !post.featured);
+  // Article vedette (le plus récent)
+  const featuredArticle = articles.length > 0 ? articles[0] : null;
+  const otherArticles = articles.slice(1);
+
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="flex items-center gap-3">
+            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+            <span className="text-lg font-medium text-gray-700">Chargement des articles...</span>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (error) {
+    return (
+      <>
+        <Navbar />
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>
+              Réessayer
+            </Button>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -107,50 +136,53 @@ const Blog = () => {
       </section>
       <div className="min-h-screen pt-0">
         {/* Article vedette */}
-        {featuredPost && (
+        {featuredArticle && (
           <div className="mb-16">
             <h2 className="text-3xl font-bold text-center mb-8">Article Vedette</h2>
             <Card className="overflow-hidden shadow-float hover-lift">
               <div className="lg:flex">
                 <div className="lg:w-1/2">
                   <img
-                    src={featuredPost.image}
-                    alt={featuredPost.title}
+                    src={featuredArticle.image || "https://images.unsplash.com/photo-1554224155-6726b3ff858f"}
+                    alt={featuredArticle.titre}
                     className="w-full h-64 lg:h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = "https://images.unsplash.com/photo-1554224155-6726b3ff858f";
+                    }}
                   />
                 </div>
                 <div className="lg:w-1/2 p-8">
                   <div className="flex items-center space-x-4 mb-4">
                     <span className="bg-primary text-white px-3 py-1 rounded-full text-sm">
-                      {featuredPost.category}
+                      {getCategory(featuredArticle)}
                     </span>
                     <div className="flex items-center text-muted-foreground text-sm">
                       <Calendar className="h-4 w-4 mr-1" />
-                      {featuredPost.date}
+                      {formatDate(featuredArticle.date_publication)}
                     </div>
                   </div>
                   
                   <h3 className="text-2xl font-bold mb-4 text-foreground">
-                    {featuredPost.title}
+                    {featuredArticle.titre}
                   </h3>
                   
                   <p className="text-muted-foreground mb-6 leading-relaxed">
-                    {featuredPost.excerpt}
+                    {getExcerpt(featuredArticle.contenu, 200)}
                   </p>
                   
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                       <div className="flex items-center">
                         <User className="h-4 w-4 mr-1" />
-                        {featuredPost.author}
+                        Utilisateur {featuredArticle.user_id}
                       </div>
                       <div className="flex items-center">
                         <Clock className="h-4 w-4 mr-1" />
-                        {featuredPost.readTime}
+                        {getReadTime(featuredArticle.contenu)}
                       </div>
                     </div>
                     
-                    <Link to={`/blog/${featuredPost.id}`}>
+                    <Link to={`/blog/${featuredArticle.id}`}>
                       <Button className="btn-primary group">
                         Lire l'article
                         <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -184,17 +216,20 @@ const Blog = () => {
 
         {/* Grille des articles */}
         <div className="grid lg:grid-cols-3 md:grid-cols-2 gap-8">
-          {filteredPosts.map((post, index) => (
-            <Card key={post.id} className="overflow-hidden shadow-card hover-lift group animate-slide-up" style={{ animationDelay: `${index * 0.1}s` }}>
+          {filteredArticles.map((article, index) => (
+            <Card key={article.id} className="overflow-hidden shadow-card hover-lift group animate-slide-up" style={{ animationDelay: `${index * 0.1}s` }}>
               <div className="relative overflow-hidden">
                 <img
-                  src={post.image}
-                  alt={post.title}
+                  src={article.image || "https://images.unsplash.com/photo-1554224155-6726b3ff858f"}
+                  alt={article.titre}
                   className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500"
+                  onError={(e) => {
+                    e.currentTarget.src = "https://images.unsplash.com/photo-1554224155-6726b3ff858f";
+                  }}
                 />
                 <div className="absolute top-4 left-4">
                   <span className="bg-primary text-white px-3 py-1 rounded-full text-sm">
-                    {post.category}
+                    {getCategory(article)}
                   </span>
                 </div>
               </div>
@@ -203,29 +238,29 @@ const Blog = () => {
                 <div className="flex items-center space-x-4 mb-3 text-sm text-muted-foreground">
                   <div className="flex items-center">
                     <Calendar className="h-4 w-4 mr-1" />
-                    {post.date}
+                    {formatDate(article.date_publication)}
                   </div>
                   <div className="flex items-center">
                     <Clock className="h-4 w-4 mr-1" />
-                    {post.readTime}
+                    {getReadTime(article.contenu)}
                   </div>
                 </div>
                 
                 <h3 className="text-xl font-bold mb-3 text-foreground group-hover:text-primary transition-colors">
-                  {post.title}
+                  {article.titre}
                 </h3>
                 
                 <p className="text-muted-foreground mb-4 leading-relaxed">
-                  {post.excerpt}
+                  {getExcerpt(article.contenu)}
                 </p>
                 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center text-sm text-muted-foreground">
                     <User className="h-4 w-4 mr-1" />
-                    {post.author}
+                    Utilisateur {article.user_id}
                   </div>
                   
-                  <Link to={`/blog/${post.id}`}>
+                  <Link to={`/blog/${article.id}`}>
                     <Button variant="outline" size="sm" className="group">
                       Lire plus
                       <ArrowRight className="h-3 w-3 ml-1 group-hover:translate-x-1 transition-transform" />
@@ -236,6 +271,13 @@ const Blog = () => {
             </Card>
           ))}
         </div>
+
+        {/* Message si aucun article */}
+        {filteredArticles.length === 0 && !loading && (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">Aucun article trouvé pour cette catégorie.</p>
+          </div>
+        )}
 
         {/* Newsletter subscription */}
         <div className="mt-16 text-center">

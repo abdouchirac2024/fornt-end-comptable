@@ -240,6 +240,15 @@ const CreateArticleModal = ({ onClose, onCreated }: { onClose: () => void, onCre
             </div>
           </div>
           <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Date de publication</label>
+            <input 
+              type="date" 
+              value={form.date_publication} 
+              onChange={e => setForm(f => ({ ...f, date_publication: e.target.value }))} 
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+            />
+          </div>
+          <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Image</label>
             <input type="file" accept="image/*" onChange={handleFile} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" />
           </div>
@@ -311,29 +320,88 @@ const ArticlesTable = ({ articles, onView, onEdit, onDelete }: {
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Titre</th>
-            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Auteur</th>
-            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Image</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Titre</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Titre EN</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Contenu</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Contenu EN</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Meta Titre</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Meta Description</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Slug</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">User ID</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date Publication</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Créé le</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Modifié le</th>
+            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {articles.map((article) => (
             <tr key={article.id} className="hover:bg-gray-50 transition-colors">
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex items-center">
-                  {article.image && (
-                    <img className="h-12 w-12 rounded-lg object-cover mr-4" src={article.image} alt={article.titre} />
-                  )}
-                  <div>
-                    <div className="text-sm font-semibold text-gray-900">{article.titre}</div>
-                    <div className="text-xs text-gray-500 max-w-xs truncate" title={article.slug}>{article.slug}</div>
+              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">#{article.id}</td>
+              <td className="px-4 py-3 whitespace-nowrap">
+                {article.image ? (
+                  <img 
+                    className="h-12 w-12 rounded-lg object-cover border border-gray-200" 
+                    src={article.image} 
+                    alt={article.titre}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className="h-12 w-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <span className="text-xs text-gray-400">No img</span>
                   </div>
+                )}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap">
+                <div className="text-sm font-semibold text-gray-900 max-w-32 truncate" title={article.titre}>
+                  {article.titre}
                 </div>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{article.user_id}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{article.date_publication ? new Date(article.date_publication).toLocaleDateString('fr-FR') : 'N/A'}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-center">
+              <td className="px-4 py-3 whitespace-nowrap">
+                <div className="text-sm text-gray-700 max-w-32 truncate" title={article.titre_en || 'N/A'}>
+                  {article.titre_en || 'N/A'}
+                </div>
+              </td>
+              <td className="px-4 py-3">
+                <div className="text-sm text-gray-700 max-w-48 truncate" title={article.contenu}>
+                  {article.contenu}
+                </div>
+              </td>
+              <td className="px-4 py-3">
+                <div className="text-sm text-gray-700 max-w-48 truncate" title={article.contenu_en || 'N/A'}>
+                  {article.contenu_en || 'N/A'}
+                </div>
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap">
+                <div className="text-sm text-gray-700 max-w-32 truncate" title={article.meta_titre || 'N/A'}>
+                  {article.meta_titre || 'N/A'}
+                </div>
+              </td>
+              <td className="px-4 py-3">
+                <div className="text-sm text-gray-700 max-w-48 truncate" title={article.meta_description || 'N/A'}>
+                  {article.meta_description || 'N/A'}
+                </div>
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap">
+                <div className="text-sm text-gray-700 max-w-32 truncate" title={article.slug}>
+                  {article.slug}
+                </div>
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{article.user_id}</td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                {article.date_publication ? new Date(article.date_publication).toLocaleDateString('fr-FR') : 'N/A'}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                {article.created_at ? new Date(article.created_at).toLocaleDateString('fr-FR') : 'N/A'}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                {article.updated_at ? new Date(article.updated_at).toLocaleDateString('fr-FR') : 'N/A'}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-center">
                 <div className="flex items-center justify-center space-x-2">
                   <button onClick={() => onView(article)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Voir"><Eye className="w-5 h-5" /></button>
                   <button onClick={() => onEdit(article)} className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg" title="Modifier"><Pencil className="w-5 h-5" /></button>
@@ -392,7 +460,7 @@ const EditArticleModal = ({ article, onClose, onUpdated }: { article: ArticleBlo
     meta_description: article.meta_description || '',
     slug: article.slug,
     image: null as File | null,
-    date_publication: article.date_publication || ''
+    date_publication: article.date_publication ? new Date(article.date_publication).toISOString().split('T')[0] : ''
   });
   const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(article.image || null);
@@ -409,26 +477,85 @@ const EditArticleModal = ({ article, onClose, onUpdated }: { article: ArticleBlo
   };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validation côté client
+    if (!form.titre.trim()) {
+      toast({ title: 'Le titre est requis', type: 'error' });
+      return;
+    }
+    
+    if (!form.contenu.trim()) {
+      toast({ title: 'Le contenu est requis', type: 'error' });
+      return;
+    }
+    
+    if (form.contenu.trim().length < 10) {
+      toast({ title: 'Le contenu doit contenir au moins 10 caractères', type: 'error' });
+      return;
+    }
+    
+    if (!form.slug.trim()) {
+      toast({ title: 'Le slug est requis', type: 'error' });
+      return;
+    }
+    
     setLoading(true);
     try {
       const fd = new FormData();
-      Object.entries(form).forEach(([key, value]) => {
-        if (value) fd.append(key, value as any);
+      
+      // Ajouter les champs exactement comme dans Postman
+      fd.append('titre', form.titre.trim());
+      fd.append('contenu', form.contenu.trim());
+      fd.append('meta_titre', form.meta_titre.trim());
+      fd.append('meta_description', form.meta_description.trim());
+      fd.append('date_publication', form.date_publication);
+      fd.append('user_id', article.user_id.toString());
+      fd.append('slug', form.slug.trim());
+      
+      // Ajouter l'image si elle existe
+      if (form.image) {
+        fd.append('image', form.image);
+      }
+      
+      console.log('Données envoyées au serveur:', {
+        titre: form.titre.trim(),
+        contenu: form.contenu.trim(),
+        meta_titre: form.meta_titre.trim(),
+        meta_description: form.meta_description.trim(),
+        date_publication: form.date_publication,
+        user_id: article.user_id,
+        slug: form.slug.trim(),
+        contenu_length: form.contenu.trim().length
       });
-      await updateArticleBlog(article.id, fd);
+      
+      const result = await updateArticleBlog(article.id, fd);
+      
+      if (result.success) {
       toast({
         title: (
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-green-600" />
-            <span>Article modifié avec succès !</span>
+              <span>{result.message}</span>
           </div>
         ),
         type: 'success'
       });
       onUpdated();
       onClose();
-    } catch {
-      toast({ title: 'Erreur lors de la modification', type: 'error' });
+      } else {
+        toast({ title: `Erreur: ${result.message}`, type: 'error' });
+      }
+    } catch (error) {
+      console.error('Erreur lors de la modification:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      toast({ 
+        title: `Erreur lors de la modification: ${errorMessage}`, 
+        type: 'error' 
+      });
+      
+      // Afficher plus de détails dans la console pour le débogage
+      console.log('Données du formulaire:', form);
+      console.log('ID de l\'article:', article.id);
     } finally {
       setLoading(false);
     }
@@ -468,6 +595,15 @@ const EditArticleModal = ({ article, onClose, onUpdated }: { article: ArticleBlo
             </div>
           </div>
           <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Date de publication</label>
+            <input 
+              type="date" 
+              value={form.date_publication} 
+              onChange={e => setForm(f => ({ ...f, date_publication: e.target.value }))} 
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+            />
+          </div>
+          <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Image</label>
             <input type="file" accept="image/*" onChange={handleFile} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" />
           </div>
@@ -487,7 +623,15 @@ const EditArticleModal = ({ article, onClose, onUpdated }: { article: ArticleBlo
           )}
           <div className="flex gap-4 pt-4">
             <button type="button" onClick={onClose} className="flex-1 px-6 py-3 border border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition-colors">Annuler</button>
-            <button type="submit" disabled={loading} className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+            <button 
+              type="submit" 
+              disabled={loading || !form.titre.trim() || !form.contenu.trim() || form.contenu.trim().length < 10 || !form.slug.trim()} 
+              className={`flex-1 px-6 py-3 font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 ${
+                loading || !form.titre.trim() || !form.contenu.trim() || form.contenu.trim().length < 10 || !form.slug.trim()
+                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+            >
               {loading && <Loader2 className="w-5 h-5 animate-spin" />}
               {loading ? 'Modification...' : 'Enregistrer'}
             </button>

@@ -1,83 +1,130 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Calendar, User, Clock, ArrowLeft, Share2, Tag, BookOpen } from 'lucide-react';
+import { Calendar, User, Clock, ArrowLeft, Share2, Tag, BookOpen, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { getArticleBlogById, getAllArticleBlogs, ArticleBlog } from '@/services/articleBlogs';
 
 const BlogPost = () => {
   const { id } = useParams();
+  const [article, setArticle] = useState<ArticleBlog | null>(null);
+  const [relatedArticles, setRelatedArticles] = useState<ArticleBlog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Données simulées - en production, ces données viendraient d'une API
-  const blogPost = {
-    id: 1,
-    title: "Les nouveaux défis de l'audit interne en 2024",
-    excerpt: "L'audit interne évolue avec la digitalisation. Découvrez comment adapter vos pratiques aux nouveaux enjeux technologiques et réglementaires.",
-    content: `
-      <h2>Introduction</h2>
-      <p>L'audit interne traverse une période de transformation majeure. Les avancées technologiques, les nouvelles réglementations et l'évolution des attentes des parties prenantes redéfinissent le rôle de l'auditeur interne moderne.</p>
+  // Charger l'article depuis le backend
+  useEffect(() => {
+    const fetchArticle = async () => {
+      if (!id) return;
       
-      <h2>Les défis technologiques</h2>
-      <p>La digitalisation des entreprises impose aux auditeurs internes de maîtriser de nouveaux outils et méthodologies :</p>
-      <ul>
-        <li><strong>Intelligence artificielle</strong> : Utilisation de l'IA pour l'analyse des données et la détection d'anomalies</li>
-        <li><strong>Audit continu</strong> : Mise en place de contrôles automatisés en temps réel</li>
-        <li><strong>Data Analytics</strong> : Exploitation des big data pour améliorer la pertinence des audits</li>
-        <li><strong>Cybersécurité</strong> : Intégration des risques cyber dans les missions d'audit</li>
-      </ul>
-      
-      <h2>L'évolution réglementaire</h2>
-      <p>Les nouvelles réglementations, notamment en matière de protection des données (RGPD) et de reporting ESG, nécessitent une adaptation des programmes d'audit :</p>
-      
-      <blockquote>
-        "L'auditeur interne doit désormais être un expert multi-disciplinaire, capable d'appréhender les enjeux technologiques, réglementaires et sociétaux de son organisation."
-      </blockquote>
-      
-      <h2>Recommandations pratiques</h2>
-      <p>Pour relever ces défis, les auditeurs internes doivent :</p>
-      <ol>
-        <li>Développer leurs compétences techniques et digitales</li>
-        <li>Adopter une approche agile dans leurs méthodologies</li>
-        <li>Renforcer leur collaboration avec les équipes IT et métiers</li>
-        <li>Intégrer les enjeux ESG dans leurs évaluations</li>
-        <li>Maintenir une veille réglementaire constante</li>
-      </ol>
-      
-      <h2>Conclusion</h2>
-      <p>L'audit interne de demain sera plus technologique, plus agile et plus stratégique. Les professionnels qui sauront s'adapter à ces évolutions joueront un rôle clé dans la gouvernance et la création de valeur de leurs organisations.</p>
-    `,
-    image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f",
-    category: "Audit Interne",
-    author: "Expert Cabinet Audit",
-    date: "15 Jan 2024",
-    readTime: "5 min",
-    tags: ["Audit Interne", "Digitalisation", "Innovation", "Formation"]
+      try {
+        setLoading(true);
+        const articleData = await getArticleBlogById(parseInt(id));
+        setArticle(articleData);
+        
+        // Charger les articles connexes (autres articles)
+        const allArticlesResponse = await getAllArticleBlogs();
+        const otherArticles = allArticlesResponse.data.filter(a => a.id !== parseInt(id));
+        setRelatedArticles(otherArticles.slice(0, 3)); // Limiter à 3 articles connexes
+      } catch (err) {
+        setError('Erreur lors du chargement de l\'article');
+        console.error('Erreur:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchArticle();
+  }, [id]);
+
+  // Fonction pour formater la date
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
   };
 
-  const relatedPosts = [
-    {
-      id: 2,
-      title: "Comment réussir sa certification CIA : Guide complet",
-      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d",
-      category: "Formation",
-      date: "10 Jan 2024"
-    },
-    {
-      id: 3,
-      title: "Cartographie des risques : Méthodologie pratique",
-      image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71",
-      category: "Gestion des Risques",
-      date: "5 Jan 2024"
+  // Fonction pour estimer le temps de lecture
+  const getReadTime = (content: string) => {
+    if (!content) return '1 min';
+    const wordsPerMinute = 200;
+    const wordCount = content.split(' ').length;
+    const minutes = Math.ceil(wordCount / wordsPerMinute);
+    return `${minutes} min`;
+  };
+
+  // Fonction pour déterminer la catégorie
+  const getCategory = (article: ArticleBlog) => {
+    if (article.meta_titre) {
+      const lowerMeta = article.meta_titre.toLowerCase();
+      if (lowerMeta.includes('audit')) return 'Audit Interne';
+      if (lowerMeta.includes('formation') || lowerMeta.includes('certification')) return 'Formation';
+      if (lowerMeta.includes('risque')) return 'Gestion des Risques';
+      if (lowerMeta.includes('contrôle')) return 'Contrôle Interne';
+      return 'Actualités';
     }
-  ];
+    return 'Actualités';
+  };
+
+  // Fonction pour nettoyer et formater le contenu HTML
+  const cleanContent = (content: string) => {
+    if (!content) return '<p>Aucun contenu disponible</p>';
+    
+    // Nettoyer le contenu et le formater pour l'affichage
+    let cleanedContent = content
+      .replace(/\n\n/g, '</p><p>') // Double saut de ligne = nouveau paragraphe
+      .replace(/\n/g, '<br>') // Simple saut de ligne = <br>
+      .trim();
+    
+    // S'assurer que le contenu est entouré de balises <p>
+    if (!cleanedContent.startsWith('<p>')) {
+      cleanedContent = '<p>' + cleanedContent;
+    }
+    if (!cleanedContent.endsWith('</p>')) {
+      cleanedContent = cleanedContent + '</p>';
+    }
+    
+    return cleanedContent;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+          <span className="text-lg font-medium text-gray-700">Chargement de l'article...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !article) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error || 'Article non trouvé'}</p>
+          <Link to="/blog">
+            <Button>Retour au blog</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
       {/* Hero de l'article */}
       <section className="relative h-96 overflow-hidden">
         <img
-          src={blogPost.image}
-          alt={blogPost.title}
+          src={article.image || "https://images.unsplash.com/photo-1554224155-6726b3ff858f"}
+          alt={article.titre}
           className="w-full h-full object-cover"
+          onError={(e) => {
+            e.currentTarget.src = "https://images.unsplash.com/photo-1554224155-6726b3ff858f";
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
         
@@ -100,23 +147,23 @@ const BlogPost = () => {
           <div className="container mx-auto px-4">
             <div className="max-w-4xl">
               <span className="bg-primary text-white px-4 py-2 rounded-full text-sm mb-4 inline-block">
-                {blogPost.category}
+                {getCategory(article)}
               </span>
               <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4 font-playfair">
-                {blogPost.title}
+                {article.titre}
               </h1>
               <div className="flex items-center space-x-6 text-white/90">
                 <div className="flex items-center">
                   <User className="h-4 w-4 mr-2" />
-                  {blogPost.author}
+                  Utilisateur {article.user_id}
                 </div>
                 <div className="flex items-center">
                   <Calendar className="h-4 w-4 mr-2" />
-                  {blogPost.date}
+                  {formatDate(article.date_publication)}
                 </div>
                 <div className="flex items-center">
                   <Clock className="h-4 w-4 mr-2" />
-                  {blogPost.readTime}
+                  {getReadTime(article.contenu)}
                 </div>
               </div>
             </div>
@@ -142,18 +189,27 @@ const BlogPost = () => {
               <Card className="shadow-elegant p-8">
                 {/* Excerpt */}
                 <div className="text-xl text-muted-foreground leading-relaxed mb-8 p-6 bg-gray-50 rounded-xl border-l-4 border-primary">
-                  {blogPost.excerpt}
+                  {article.meta_description || getExcerpt(article.contenu, 200)}
                 </div>
 
                 {/* Contenu de l'article */}
                 <div 
                   className="prose prose-lg max-w-none"
-                  dangerouslySetInnerHTML={{ __html: blogPost.content }}
+                  dangerouslySetInnerHTML={{ __html: cleanContent(article.contenu) }}
                   style={{
                     lineHeight: '1.8',
                     fontSize: '16px'
                   }}
                 />
+                
+                {/* Version de fallback si le contenu ne s'affiche pas */}
+                {!article.contenu && (
+                  <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-yellow-800">
+                      <strong>Note :</strong> Le contenu de cet article n'est pas disponible.
+                    </p>
+                  </div>
+                )}
 
                 {/* Tags */}
                 <div className="mt-12 pt-8 border-t border-border">
@@ -162,7 +218,7 @@ const BlogPost = () => {
                     Tags
                   </h4>
                   <div className="flex flex-wrap gap-2">
-                    {blogPost.tags.map((tag) => (
+                    {[getCategory(article), 'Audit', 'Formation'].map((tag) => (
                       <span
                         key={tag}
                         className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm hover:bg-primary hover:text-white transition-colors cursor-pointer"
@@ -206,27 +262,30 @@ const BlogPost = () => {
                   Articles connexes
                 </h3>
                 <div className="space-y-6">
-                  {relatedPosts.map((post) => (
+                  {relatedArticles.map((relatedArticle) => (
                     <Link
-                      key={post.id}
-                      to={`/blog/${post.id}`}
+                      key={relatedArticle.id}
+                      to={`/blog/${relatedArticle.id}`}
                       className="block group"
                     >
                       <div className="flex space-x-4">
                         <img
-                          src={post.image}
-                          alt={post.title}
+                          src={relatedArticle.image || "https://images.unsplash.com/photo-1554224155-6726b3ff858f"}
+                          alt={relatedArticle.titre}
                           className="w-20 h-20 object-cover rounded-lg group-hover:scale-105 transition-transform"
+                          onError={(e) => {
+                            e.currentTarget.src = "https://images.unsplash.com/photo-1554224155-6726b3ff858f";
+                          }}
                         />
                         <div className="flex-1">
                           <span className="text-xs text-primary bg-primary/10 px-2 py-1 rounded-full">
-                            {post.category}
+                            {getCategory(relatedArticle)}
                           </span>
                           <h4 className="font-medium mt-2 group-hover:text-primary transition-colors line-clamp-2">
-                            {post.title}
+                            {relatedArticle.titre}
                           </h4>
                           <p className="text-sm text-muted-foreground mt-1">
-                            {post.date}
+                            {formatDate(relatedArticle.date_publication)}
                           </p>
                         </div>
                       </div>
@@ -282,6 +341,15 @@ const BlogPost = () => {
       </section>
     </div>
   );
+};
+
+// Fonction utilitaire pour extraire un extrait
+const getExcerpt = (content: string, maxLength: number = 200) => {
+  if (!content) return 'Aucun contenu disponible';
+  const cleanContent = content.replace(/<[^>]*>/g, ''); // Supprimer les balises HTML
+  return cleanContent.length > maxLength 
+    ? cleanContent.substring(0, maxLength) + '...'
+    : cleanContent;
 };
 
 export default BlogPost;

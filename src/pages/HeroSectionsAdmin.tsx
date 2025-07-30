@@ -43,7 +43,13 @@ interface HeroSlideFormData {
   slide_duration: number;
   is_active: boolean;
   slide_order: number;
-  background_images: File[]; // Changé pour supporter plusieurs images
+  background_images: File[]; // Nouvelles images à uploader
+  existing_images: Array<{
+    url: string;
+    alt_text?: string;
+    caption?: string;
+    display_order: number;
+  }>; // Images existantes
   section_id?: number; // Ajout de l'ID de section pour l'identification
 }
 
@@ -99,7 +105,7 @@ const useToast = () => {
   return { toast, ToastContainer };
 };
 
-// Hook pour la pagination
+// Hook pour la paginationimage.png
 const usePagination = (data: HeroSectionWithSlides[], itemsPerPage: number = 8) => {
   const [currentPage, setCurrentPage] = useState(1);
   
@@ -265,9 +271,11 @@ const HeroSlideModal = ({ slide, sectionId, onClose, onSaved }: {
     slide_duration: slide?.slide_duration || 5000,
     is_active: slide?.is_active ?? true, // S'assurer que c'est true par défaut
     slide_order: slide?.slide_order || 1,
-    background_images: [] // Initialiser avec un tableau vide
+    background_images: [], // Nouvelles images à uploader
+    existing_images: slide?.images || [] // Images existantes du slide
   });
   const [loading, setLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -285,6 +293,13 @@ const HeroSlideModal = ({ slide, sectionId, onClose, onSaved }: {
     setFormData(prev => ({
       ...prev,
       background_images: prev.background_images.filter((_, i) => i !== index)
+    }));
+  };
+
+  const removeExistingImage = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      existing_images: prev.existing_images.filter((_, i) => i !== index)
     }));
   };
 
@@ -306,7 +321,8 @@ const HeroSlideModal = ({ slide, sectionId, onClose, onSaved }: {
       slide_duration: 5000,
       is_active: true,
       slide_order: 1,
-      background_images: []
+      background_images: [],
+      existing_images: []
     });
   };
 
@@ -590,6 +606,46 @@ const HeroSlideModal = ({ slide, sectionId, onClose, onSaved }: {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Images de fond (plusieurs images autorisées)
             </label>
+            
+            {/* Images existantes */}
+            {slide && formData.existing_images.length > 0 && (
+              <div className="mb-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Images existantes :</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {formData.existing_images.map((image, index) => (
+                    <div key={image.url} className="relative group">
+                      <img
+                        src={image.url}
+                        alt={`Image existante ${index + 1}`}
+                        className="w-full h-24 object-cover rounded-lg border border-gray-200"
+                        onClick={() => setSelectedImage(image.url)}
+                        title="Cliquez pour voir en grand"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeExistingImage(index)}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                        title="Supprimer cette image"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                      <div className="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white text-xs px-1 py-0.5 rounded">
+                        {index + 1}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  ⓘ Cliquez sur une image pour la voir en grand, ou sur la croix pour la supprimer
+                </p>
+              </div>
+            )}
+            
+            {/* Nouvelles images */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">
+                {slide ? 'Ajouter de nouvelles images :' : 'Sélectionner des images :'}
+              </h4>
             <input
               type="file"
               accept="image/*"
@@ -605,15 +661,19 @@ const HeroSlideModal = ({ slide, sectionId, onClose, onSaved }: {
                 />
                 {formData.background_images.length > 1 && (
                   <p className="text-xs text-blue-600 mt-2">
-                    ⓘ Toutes les images seront envoyées au serveur
+                      ⓘ Toutes les nouvelles images seront envoyées au serveur
                   </p>
                 )}
               </div>
             ) : (
               <p className="text-sm text-gray-500 mt-2">
-                Aucune image sélectionnée. Vous pouvez ajouter plusieurs images qui seront toutes envoyées au serveur.
+                  {slide 
+                    ? 'Aucune nouvelle image sélectionnée. Vous pouvez ajouter plusieurs images.'
+                    : 'Aucune image sélectionnée. Vous pouvez ajouter plusieurs images qui seront toutes envoyées au serveur.'
+                  }
               </p>
             )}
+            </div>
           </div>
 
           <div>
@@ -660,6 +720,14 @@ const HeroSlideModal = ({ slide, sectionId, onClose, onSaved }: {
           </div>
         </form>
       </div>
+      
+      {/* Modal pour voir les images en grand */}
+      {selectedImage && (
+        <ImageModal 
+          imageUrl={selectedImage} 
+          onClose={() => setSelectedImage(null)} 
+        />
+      )}
     </div>
   );
 };
@@ -1212,24 +1280,24 @@ const HeroSectionsAdmin = () => {
                           <div className="flex flex-wrap gap-1">
                             {/* Image de fond principale */}
                             {item.background_image && (
-                              <div 
-                                className="relative group cursor-pointer"
-                                onClick={() => setSelectedImage(item.background_image)}
+                            <div 
+                              className="relative group cursor-pointer"
+                              onClick={() => setSelectedImage(item.background_image)}
                                 title="Cliquez pour voir l'image de fond en grand"
-                              >
-                                <img
-                                  src={item.background_image}
+                            >
+                              <img
+                                src={item.background_image}
                                   alt={`Image de fond de ${item.title}`}
                                   className="w-12 h-9 object-cover rounded border border-gray-200 shadow-sm"
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = 'none';
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
                                   }}
                                 />
                                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded flex items-center justify-center">
                                   <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity font-medium">
                                     Voir
                                   </span>
-                                </div>
+                              </div>
                                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
                                   <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
                                 </div>
@@ -1259,19 +1327,19 @@ const HeroSectionsAdmin = () => {
                                       }}
                                     />
                                     <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded flex items-center justify-center">
-                                      <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity font-medium">
-                                        Voir
-                                      </span>
-                                    </div>
+                                <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity font-medium">
+                                  Voir
+                                </span>
+                              </div>
                                     <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
                                       <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-                                    </div>
-                                  </div>
+                              </div>
+                            </div>
                                 ))}
                                 {/* Indicateur du nombre total d'images */}
                                 <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
                                   <span className="text-white text-xs font-bold">{item.images.length}</span>
-                                </div>
+                            </div>
                               </>
                             )}
                             

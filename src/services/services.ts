@@ -51,27 +51,63 @@ export async function getServiceById(id: number): Promise<Service> {
 }
 
 // Créer un nouveau service
-export async function createService(serviceData: FormData): Promise<Service> {
-  const response = await fetch(`${API_BASE_URL}/services`, {
-    method: 'POST',
-    body: serviceData,
-  });
-  if (!response.ok) {
-    throw new Error('Erreur lors de la création du service');
+export async function createService(serviceData: FormData): Promise<{ success: boolean; message: string; data: Service }> {
+  console.log('Envoi de la requête POST vers:', `${API_BASE_URL}/services`);
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/services`, {
+      method: 'POST',
+      body: serviceData,
+      // Ne pas définir Content-Type pour FormData, le navigateur le fait automatiquement
+      redirect: 'follow', // Suivre les redirections
+    });
+    
+    console.log('Statut de la réponse:', response.status);
+    console.log('Headers de la réponse:', Object.fromEntries(response.headers.entries()));
+    
+    // Si c'est une redirection, suivre la redirection
+    if (response.redirected) {
+      console.log('Redirection détectée vers:', response.url);
+    }
+    
+    // Vérifier si la réponse est OK ou si c'est une redirection réussie
+    if (response.ok || response.status === 302) {
+      const result = await response.json();
+      console.log('Réponse du serveur:', result);
+      
+      // Si c'est une redirection, essayer de récupérer la vraie réponse
+      if (response.status === 302) {
+        console.log('Traitement de la redirection 302...');
+        // La redirection peut contenir la vraie réponse dans le body
+        return result;
+      }
+      
+      return result;
+    } else {
+      const errorText = await response.text();
+      console.error('Réponse d\'erreur:', errorText);
+      throw new Error(`Erreur HTTP ${response.status}: ${errorText}`);
+    }
+  } catch (error) {
+    console.error('Erreur lors de la requête:', error);
+    throw error;
   }
-  return response.json();
 }
 
 // Mettre à jour un service
-export async function updateService(id: number, serviceData: FormData): Promise<Service> {
-  const response = await fetch(`${API_BASE_URL}/services/${id}`, {
+export async function updateService(id: number, serviceData: FormData): Promise<{ success: boolean; message: string; data: Service }> {
+  const response = await fetch(`${API_BASE_URL}/services/${id}/update`, {
     method: 'POST',
     body: serviceData,
   });
+  
+  const result = await response.json();
+  
   if (!response.ok) {
-    throw new Error('Erreur lors de la mise à jour du service');
+    throw new Error(result.message || 'Erreur lors de la mise à jour du service');
   }
-  return response.json();
+  
+  return result;
 }
 
 // Supprimer un service
